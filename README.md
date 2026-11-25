@@ -64,8 +64,7 @@ python3 -m http.server 8000
 1. Open `js/content.js` and replace every placeholder (names, education, skill levels, projects, dashboard values, roadmap, contact links). Delete `placeholder: true` on items once they are real.
 2. Set your real email in `SITE.email`. Until then the contact form shows a "Setup needed" message.
 3. In `index.html`, replace `[YOUR NAME]` and `[YOUR-GITHUB-USERNAME]` (title, meta tags, canonical URL, JSON-LD) and fill the placeholder text in the hero and About sections.
-4. In `index.html`, remove the unused line `<link rel="preconnect" href="https://fonts.googleapis.com">`. The site uses system fonts only.
-5. Optionally add an `og:image` (a 1200x630 image) and reference it in the meta tags.
+4. Optionally add an `og:image` (a 1200x630 image) and reference it in the meta tags.
 
 ## Deploy to GitHub Pages
 
@@ -101,7 +100,6 @@ Use **Reset to defaults** in the studio, or delete `claude_port:prefs` from your
 - **Not browser-tested by the author of this code.** Please test in current Chrome, Firefox, Safari and a phone before publishing.
 - Icon sprites do not load over `file://` in some browsers. Use a server.
 - `grid.svg` and `favicon.svg` use fixed colours, so they do not follow the studio accent.
-- `aria-valuenow` on the preloader (`role="status"`) is not meaningful and can be removed from `js/preloader.js` if a linter complains.
 - The contact form has no backend. It opens the visitor's email app through `mailto:`.
 
 ## Licence
