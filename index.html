@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="en" data-accent="cyan" data-motion="auto" data-density="comfortable">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#050b1a">
+
+  <title>[YOUR NAME] — Aspiring Data Analyst Portfolio</title>
+  <meta name="description" content="Portfolio of [YOUR NAME], an aspiring Data Analyst learning SQL, Python, statistics and data storytelling. Projects, learning progress and roadmap.">
+  <meta name="author" content="[YOUR NAME]">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://[YOUR-GITHUB-USERNAME].github.io/claude_port/">
+
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="[YOUR NAME] — Aspiring Data Analyst Portfolio">
+  <meta property="og:description" content="Projects, learning progress and roadmap of an aspiring Data Analyst.">
+  <meta property="og:url" content="https://[YOUR-GITHUB-USERNAME].github.io/claude_port/">
+  <meta property="og:site_name" content="claude_port">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="[YOUR NAME] — Aspiring Data Analyst Portfolio">
+  <meta name="twitter:description" content="Projects, learning progress and roadmap of an aspiring Data Analyst.">
+
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
+
+  <script>document.documentElement.classList.add('js');</script>
+
+  <link rel="stylesheet" href="css/tokens.css">
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/glass.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/sections.css">
+  <link rel="stylesheet" href="css/studio.css">
+  <link rel="stylesheet" href="css/motion.css">
+
+  <noscript>
+    <style>
+      [data-reveal]{opacity:1!important;transform:none!important}
+      #preloader{display:none!important}
+    </style>
+  </noscript>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "Person",
+    "name": "[YOUR NAME]",
+    "jobTitle": "Aspiring Data Analyst",
+    "url": "https://[YOUR-GITHUB-USERNAME].github.io/claude_port/"
+  }
+  </script>
+</head>
+
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <!-- Screen-reader announcements (used by js/utils.js announce()) -->
+  <div id="live-region" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- 01 · Preloader -->
+  <div id="preloader" class="preloader" role="status" aria-live="polite" aria-label="Loading portfolio">
+    <div class="preloader__inner">
+      <div class="preloader__mark" aria-hidden="true">
+        <svg viewBox="0 0 120 120" width="120" height="120" focusable="false">
+          <circle class="preloader__ring preloader__ring--outer" cx="60" cy="60" r="52" fill="none" stroke-width="2"/>
+          <circle class="preloader__ring preloader__ring--inner" cx="60" cy="60" r="38" fill="none" stroke-width="2"/>
+          <path class="preloader__bars" d="M42 78V58M54 78V44M66 78V52M78 78V38" fill="none" stroke-width="5" stroke-linecap="round"/>
+        </svg>
+      </div>
+      <p class="preloader__title">claude_port</p>
+      <p id="preloader-status" class="preloader__status">Initialising</p>
+      <div class="preloader__track" aria-hidden="true">
+        <span id="preloader-bar" class="preloader__bar"></span>
+      </div>
+      <p class="preloader__percent"><span id="preloader-percent">0</span>%</p>
+    </div>
+  </div>
+
+  <!-- Ambient background layers -->
+  <div class="bg-layer" aria-hidden="true">
+    <div class="bg-layer__grid"></div>
+    <div class="bg-layer__glow bg-layer__glow--a"></div>
+    <div class="bg-layer__glow bg-layer__glow--b"></div>
+    <div class="bg-layer__noise"></div>
+  </div>
+
+  <!-- 14 · Custom scroll progress orb -->
+  <button id="progress-orb" class="orb" type="button" aria-label="Back to top. Scroll progress 0 percent">
+    <svg class="orb__svg" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+      <circle class="orb__track" cx="32" cy="32" r="28" fill="none" stroke-width="3"/>
+      <circle id="progress-orb-ring" class="orb__ring" cx="32" cy="32" r="28" fill="none" stroke-width="3" stroke-linecap="round" transform="rotate(-90 32 32)"/>
+    </svg>
+    <span id="progress-orb-value" class="orb__value" aria-hidden="true">0</span>
+    <svg class="icon orb__arrow" aria-hidden="true" focusable="false"><use href="assets/svg/icons.svg#icon-arrow-up"></use></svg>
+  </button>
+
+  <!-- 12 · Persistent SVG character (SVG injected by js/character.js) -->
+  <div id="character-root" class="character" aria-hidden="true">
+    <p id="character-bubble" class="character__bubble glass" hidden></p>
+    <div id="character-stage" class="character__stage"></div>
+  </div>
+
+  <!-- 16 · Responsive navigation -->
+  <header id="site-header" class="site-header">
+    <nav class="nav glass" aria-label="Primary">
+      <a class="nav__brand" href="#hero" data-nav-link="hero" aria-label="[YOUR NAME] — back to top">
+        <svg class="nav__logo" viewBox="0 0 32 32" aria-hidden="true" focusable="false">
+          <rect x="3" y="3" width="26" height="26" rx="8" fill="none" stroke="currentColor" stroke-width="2"/>
+          <path d="M10 21v-5M16 21v-9M22 21v-7" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+        </svg>
+        <span class="nav__brand-text">claude_port</span>
+      </a>
+
+      <button id="nav-toggle" class="nav__toggle" type="button" aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+        <svg class="icon nav__toggle-open" aria-hidden="true" focusable="false"><use href="assets/svg/icons.svg#icon-menu"></use></svg>
+        <svg class="icon nav__toggle-close" aria-hidden="true" focusable="false"><use href="assets/svg/icons.svg#icon-close"></use></svg>
+      </button>
+
+      <div id="site-nav" class="nav__panel">
+        <ul class="nav__list">
+          <li><a class="nav__link" href="#about" data-nav-link="about">About</a></li>
+          <li><a class="nav__link" href="#education" data-nav-link="education">Education</a></li>
+          <li><a class="nav__link" href="#skills" data-nav-link="skills">Skills</a></li>
+          <li><a class="nav__link" href="#research" data-nav-link="research">Research</a></li>
+          <li><a class="nav__link" href="#projects" data-nav-link="projects">Projects</a></li>
+          <li><a class="nav__link" href="#dashboard" data-nav-link="dashboard">Progress</a></li>
+          <li><a class="nav__link" href="#workflow" data-nav-link="workflow">Workflow</a></li>
+          <li><a class="nav__link" href="#roadmap" data-nav-link="roadmap">Roadmap</a></li>
+          <li><a class="nav__link" href="#contact" data-nav-link="contact">Contact</a></li>
+        </ul>
+        <button id="studio-open" class="btn btn--ghost nav__studio" type="button" aria-haspopup="dialog" aria-controls="studio">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/svg/icons.svg#icon-sliders"></use></svg>
+          <span>Design Studio</span>
+        </button>
+      </div>
+    </nav>
+  </header>
+
+  <main id="main" tabindex="-1">
+
+    <noscript>
+      <p class="noscript-note glass">This portfolio renders its content with JavaScript. Please enable JavaScript to see every section.</p>
+    </noscript>
+
+    <!-- 02 · Hero -->
+    <section id="hero" class="section hero" aria-labelledby="hero-title" data-section>
+      <div class="container hero__grid">
+        <div class="hero__copy">
+          <p class="eyebrow" data-reveal>Aspiring Data Analyst</p>
+          <h1 id="hero-title" class="hero__title" data-reveal data-reveal-delay="1">
+            Hi, I'm <span class="ph" data-ph="name">[YOUR NAME]</span>.<br>
+            I turn questions into <span class="text-gradient">clear insight</span>.
+          </h1>
+          <p class="hero__lead" data-reveal data-reveal-delay="2">
+            Currently learning <span id="hero-role" class="hero__role" aria-live="off">SQL, Python and data storytelling</span>.
+            <span class="ph">[PLACEHOLDER: one honest sentence about what you are focusing on right now]</span>
+          </p>
+          <div class="hero__actions" data-reveal data-reveal-delay="3">
+            <a class="btn btn--primary" href="#projects">
+              <span>View projects</span>
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/svg/icons.svg#icon-arrow-right"></use></svg>
+            </a>
+            <a class="btn btn--ghost" href="#contact">
+              <span>Get in touch</span>
+            </a>
+          </div>
+        </div>
+
+        <aside class="hero__meta glass glass--tilt" data-reveal="scale" data-reveal-delay="2" data-tilt aria-label="Quick facts">
+          <dl class="meta-list">
+            <div class="meta-list__row">
+              <dt>Focus</dt>
+              <dd><span class="ph">[PLACEHOLDER: focus area]</span></dd>
+            </div>
+            <div class="meta-list__row">
+              <dt>Status</dt>
+              <dd><span class="ph">[PLACEHOLDER: e.g. student / career changer]</span></dd>
+            </div>
+            <div class="meta-list__row">
+              <dt>Location</dt>
+              <dd><span class="ph">[PLACEHOLDER: city, country]</span></dd>
+            </div>
+            <div class="meta-list__row">
+              <dt>Open to</dt>
+              <dd><span class="ph">[PLACEHOLDER: internships / junior roles / collaboration]</span></dd>
+            </div>
+          </dl>
+        </aside>
+      </div>
+      <a class="hero__scroll" href="#about" aria-label="Scroll to About section">
+        <span class="hero__scroll-line" aria-hidden="true"></span>
+        <span>Scroll</span>
+      </a>
+    </section>
+
+    <!-- 03 · About -->
+    <section id="about" class="section" aria-labelledby="about-title" data-section>
+      <div class="container">
+        <header class="section__head" data-reveal>
+          <p class="eyebrow">01 — About</p>
+          <h2 id="about-title" class="section__title">About me</h2>
+        </header>
+        <div class="about__grid">
+          <div class="about__text glass" data-reveal="left">
+            <p><span class="ph">[PLACEHOLDER: short introduction — who you are and how you became interested in data.]</span></p>
+            <p><span class="ph">[PLACEHOLDER: what you enjoy about analysis and what kind of problems you want to work on.]</span></p>
+            <p><span class="ph">[PLACEHOLDER: how you work — habits, strengths, what you are improving.]</span></p>
+          </div>
+          <ul id="about-facts" class="about__facts" data-reveal-stagger aria-label="Highlights"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- 04 · Education -->
+    <section id="education" class="section" aria-labelledby="education-title" data-section>
+      <div class="container">
+        <header class="section__head" data-reveal>
+          <p class="eyebrow">02 — Education</p>
+          <h2 id="education-title" class="section__title">Education &amp; learning</h2>
+          <p class="section__lead">Formal study and self-directed courses. Only verified entries should appear here.</p>
+        </header>
+        <ol id="education-list" class="timeline" data-reveal-stagger></ol>
+      </div>
+    </section>
+
+    <!-- 05 · Skills -->
+    <section id="skills" class="section" aria-labelledby="skills-title" data-section>
+      <div class="container">
+        <header class="section__head" data-reveal>
+          <p class="eyebrow">03 — Skills</p>
+          <h2 id="skills-title" class="section__title">Skills &amp; honest levels</h2>
+          <p class="section__lead">Levels describe where I really am today, not where I hope to be.</p>
+        </header>
+        <ul id="skills-legend" class="legend" data-reveal aria-label="Skill level legend"></ul>
+        <div id="skills-grid" class="skills__grid" data-reveal-stagger></div>
+      </div>
+    </section>
+
+    <!-- 06 · Research interests -->
+    <section id="research" class="section" aria-labelledby="research-title" data-section>
+      <div class="container">
+        <header class="section__head" data-reveal>
+          <p class="eyebrow">04 — Research</p>
+          <h2 id="research-title" class="section__title">Research interests</h2>
+          <p class="section__lead">Questions I want to explore as I grow as an analyst.</p>
+        </header>
+        <div id="research-grid" class="research__grid" data-reveal-stagger></div>
+      </div>
+    </section>
+
+    <!-- 07 · Projects -->
+    <section id="projects" class="section" aria-labelledby="projects-title" data-section>
+      <div class="container">
+        <header class="section__head" data-reveal>
+          <p class="eyebrow">05 — Projects</p>
+          <h2 id="projects-title" class="section__title">Projects showcase</h2>
+          <p class="section__lead">Each card is a placeholder until a real project is added in <code>js/content.js</code>.</p>
+        </header>
+        <div id="project-filters" class="filters" role="group" aria-label="Filter projects" data-reveal></div>
+        <div id="project-grid" class="projects__grid" data-reveal-stagger></div>
+        <p id="project-empty" class="projects__empty" hidden>No projects match this filter yet.</p>
+      </div>
+    </section>
+
+    <!-- 08 · Learning progress dashboard -->
+    <section id="dashboard" class="section" aria-labelledby="dashboard-title" data-section>
+      <div class="container">
+        <header class="section__head" data-reveal>
+          <p class="eyebrow">06 — Progress</p>
+          <h2 id="dashboard-title" class="section__title">Learning progress dashboard</h2>
+          <p class="section__lead">Self-assessed progress. Update the values in <code>js/content.js</code> as you learn.</p>
+        </header>
+        <div class="dashboard glass" data-reveal>
+          <div id="dashboard-summary" class="dashboard__summary"></div>
+          <div id="dashboard-grid" class="dashboard__grid"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 09 · AI and analytics workflow -->
+    <section id="workflow" class="section" aria-labelledby="workflow-title" data-section>
+      <div class="container">
+        <header class="section__head" data-reveal>
+          <p class="eyebrow">07 — Workflow</p>
+          <h2 id="workflow-title" class="section__title">AI &amp; analytics workflow</h2>
+          <p class="section__lead">How I use AI as an assistant while keeping judgement, verification and ownership with me.</p>
+        </header>
+        <ol id="workflow-steps" class="workflow" data-reveal-stagger></ol>
+      </div>
+    </section>
+
+    <!-- 10 · Learning roadmap -->
+    <section id="roadmap" class="section" aria-labelledby="roadmap-title" data-section>
+      <div class="container">
+        <header class="section__head" data-reveal>
+          <p class="eyebrow">08 — Roadmap</p>
+          <h2 id="roadmap-title" class="section__title">Learning roadmap</h2>
+          <p class="section__lead">Where I am heading next. Dates are placeholders until confirmed.</p>
+        </header>
+        <ol id="roadmap-track" class="roadmap" data-reveal-stagger></ol>
+      </div>
+    </section>
+
+    <!-- 11 · Contact -->
+    <section id="contact" class="section" aria-labelledby="contact-title" data-section>
+      <div class="container">
+        <header class="section__head" data-reveal>
+          <p class="eyebrow">09 — Contact</p>
+          <h2 id="contact-title" class="section__title">Let's connect</h2>
+          <p class="section__lead">Open to conversations about learning, projects and opportunities.</p>
+        </header>
+        <div class="contact__grid">
+          <ul id="contact-list" class="contact__list" data-reveal-stagger aria-label="Contact links"></ul>
+
+          <form id="contact-form" class="contact__form glass" data-reveal="right" novalidate>
+            <div class="field">
+              <label for="contact-name">Name</label>
+              <input id="contact-name" name="name" type="text" autocomplete="name" required>
+              <p class="field__error" id="contact-name-error" hidden>Please enter your name.</p>
+            </div>
+            <div class="field">
+              <label for="contact-email">Email</label>
+              <input id="contact-email" name="email" type="email" autocomplete="email" required>
+              <p class="field__error" id="contact-email-error" hidden>Please enter a valid email address.</p>
+            </div>
+            <div class="field">
+              <label for="contact-message">Message</label>
+              <textarea id="contact-message" name="message" rows="5" required></textarea>
+              <p class="field__error" id="contact-message-error" hidden>Please write a short message.</p>
+            </div>
+            <button class="btn btn--primary" type="submit">
+              <span>Open in email app</span>
+              <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/svg/icons.svg#icon-mail"></use></svg>
+            </button>
+            <p id="contact-status" class="contact__status" role="status" aria-live="polite"></p>
+            <p class="contact__note">This static site has no server. The button opens your own email app with the message pre-filled.</p>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container site-footer__inner">
+      <p>&copy; <span id="footer-year">2026</span> <span class="ph">[YOUR NAME]</span>. Built with HTML, CSS and vanilla JavaScript.</p>
+      <a class="site-footer__top" href="#hero">Back to top</a>
+    </div>
+  </footer>
+
+  <!-- 14/15 · Interactive Design Studio -->
+  <div id="studio-backdrop" class="studio-backdrop" hidden></div>
+  <aside id="studio" class="studio glass" role="dialog" aria-modal="true" aria-labelledby="studio-title" aria-hidden="true" hidden>
+    <header class="studio__head">
+      <div>
+        <p class="eyebrow">Design Studio</p>
+        <h2 id="studio-title" class="studio__title">Make it yours</h2>
+      </div>
+      <button id="studio-close" class="icon-btn" type="button" aria-label="Close Design Studio">
+        <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/svg/icons.svg#icon-close"></use></svg>
+      </button>
+    </header>
+
+    <form id="studio-form" class="studio__body" autocomplete="off">
+      <fieldset class="studio__group">
+        <legend>Accent colour</legend>
+        <div class="swatches">
+          <label class="swatch swatch--cyan"><input type="radio" name="accent" value="cyan" data-pref="accent"><span>Cyan</span></label>
+          <label class="swatch swatch--azure"><input type="radio" name="accent" value="azure" data-pref="accent"><span>Azure</span></label>
+          <label class="swatch swatch--mint"><input type="radio" name="accent" value="mint" data-pref="accent"><span>Mint</span></label>
+          <label class="swatch swatch--violet"><input type="radio" name="accent" value="violet" data-pref="accent"><span>Violet</span></label>
+          <label class="swatch swatch--amber"><input type="radio" name="accent" value="amber" data-pref="accent"><span>Amber</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="studio__group">
+        <legend>Glass intensity <output data-pref-output="glass">60</output>%</legend>
+        <input type="range" id="studio-glass" name="glass" min="0" max="100" step="5" value="60" data-pref="glass" aria-label="Glass intensity">
+      </fieldset>
+
+      <fieldset class="studio__group">
+        <legend>Text size <output data-pref-output="fontScale">100</output>%</legend>
+        <input type="range" id="studio-font" name="fontScale" min="90" max="125" step="5" value="100" data-pref="fontScale" aria-label="Text size">
+      </fieldset>
+
+      <fieldset class="studio__group">
+        <legend>Motion</legend>
+        <div class="segmented">
+          <label><input type="radio" name="motion" value="auto" data-pref="motion"><span>System</span></label>
+          <label><input type="radio" name="motion" value="full" data-pref="motion"><span>Full</span></label>
+          <label><input type="radio" name="motion" value="reduced" data-pref="motion"><span>Reduced</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="studio__group">
+        <legend>Density</legend>
+        <div class="segmented">
+          <label><input type="radio" name="density" value="comfortable" data-pref="density"><span>Comfortable</span></label>
+          <label><input type="radio" name="density" value="compact" data-pref="density"><span>Compact</span></label>
+        </div>
+      </fieldset>
+
+      <fieldset class="studio__group">
+        <legend>Effects</legend>
+        <label class="toggle"><input type="checkbox" name="character" data-pref="character"><span>Show character</span></label>
+        <label class="toggle"><input type="checkbox" name="tilt" data-pref="tilt"><span>3D card tilt</span></label>
+        <label class="toggle"><input type="checkbox" name="grain" data-pref="grain"><span>Film grain</span></label>
+      </fieldset>
+
+      <div class="studio__actions">
+        <button id="studio-reset" class="btn btn--ghost" type="button">
+          <svg class="icon" aria-hidden="true" focusable="false"><use href="assets/svg/icons.svg#icon-reset"></use></svg>
+          <span>Reset to defaults</span>
+        </button>
+      </div>
+      <p class="studio__note">Preferences are saved in this browser only.</p>
+    </form>
+  </aside>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

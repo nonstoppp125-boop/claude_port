@@ -1,0 +1,431 @@
+/* ==========================================================================
+   css/studio.css
+   Interactive Design Studio: slide-in dialog, backdrop and form controls.
+
+   Markup contract (index.html):
+     #studio-backdrop.studio-backdrop[hidden]
+     #studio.studio.glass[role=dialog][hidden]
+       .studio__head > div(.eyebrow + h2.studio__title) + #studio-close.icon-btn
+       #studio-form.studio__body
+         fieldset.studio__group > legend + (.swatches | input[type=range] |
+                                            .segmented | label.toggle)
+         .studio__actions > #studio-reset
+         p.studio__note
+
+   State classes written by js/studio.js:
+     #studio.is-open            panel visible (slide-in)
+     #studio-backdrop.is-open   backdrop visible (fade-in)
+     html.studio-open           page scroll lock (defined in base.css)
+
+   studio.js must follow this open sequence so the transition runs:
+     1. remove the `hidden` attribute from #studio and #studio-backdrop
+     2. force a reflow (e.g. read offsetWidth) or wait one animation frame
+     3. add .is-open to both
+     and the reverse on close: remove .is-open, then after
+     transitionend (or ~350ms) set `hidden` again.
+
+   Depends on: tokens.css, base.css, glass.css
+   ========================================================================== */
+
+/* ---------- Backdrop ---------- */
+
+.studio-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-studio-backdrop);
+  background: rgb(2 6 16 / 0.6);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.studio-backdrop.is-open {
+  opacity: 1;
+}
+
+/* ---------- Panel ----------
+   .glass sets position: relative and a radius; both are overridden here
+   with a single-class selector (studio.css loads after glass.css).          */
+
+.studio {
+  position: fixed;
+  z-index: var(--z-studio);
+  top: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(26rem, 100%);
+  height: 100%;
+  height: 100dvh;
+  border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+  background:
+    linear-gradient(145deg, rgb(255 255 255 / 0.07) 0%, transparent 45%),
+    rgb(8 18 38 / 0.94);
+  box-shadow: var(--shadow-lg), var(--shadow-inset);
+  transform: translateX(100%);
+  transition: transform var(--dur-slow) var(--ease-out);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.studio.is-open {
+  transform: translateX(0);
+}
+
+@media (max-width: 40rem) {
+  .studio {
+    width: 100%;
+    border-radius: 0;
+  }
+}
+
+/* ---------- Header ---------- */
+
+.studio__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: calc(var(--space-5) + env(safe-area-inset-top, 0px)) var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--glass-border);
+}
+
+.studio__head > div {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.studio__title {
+  font-size: var(--fs-xl);
+}
+
+/* ---------- Body ---------- */
+
+.studio__body {
+  display: grid;
+  gap: var(--space-5);
+  align-content: start;
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-5);
+}
+
+.studio__group {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: 0;
+  border: 0;
+}
+
+.studio__group legend {
+  float: left;
+  width: 100%;
+  margin-bottom: var(--space-3);
+  padding: 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.studio__group legend + * {
+  clear: both;
+}
+
+.studio__group output {
+  color: var(--accent);
+  font-weight: var(--fw-bold);
+}
+
+/* ---------- Swatches ---------- */
+
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4.5rem, 1fr));
+  gap: var(--space-2);
+}
+
+.swatch {
+  position: relative;
+  display: block;
+}
+
+.swatch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.swatch span {
+  display: grid;
+  justify-items: center;
+  gap: 0.45rem;
+  padding: 0.7rem 0.4rem;
+  border-radius: var(--radius-md);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  color: var(--text-muted);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  transition:
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.swatch span::before {
+  content: "";
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgb(var(--sw-a)), rgb(var(--sw-b)));
+  box-shadow: 0 0 14px rgb(var(--sw-a) / 0.45);
+}
+
+.swatch--cyan   { --sw-a: 34 211 238;  --sw-b: 59 130 246; }
+.swatch--azure  { --sw-a: 96 165 250;  --sw-b: 129 140 248; }
+.swatch--mint   { --sw-a: 52 211 153;  --sw-b: 34 211 238; }
+.swatch--violet { --sw-a: 167 139 250; --sw-b: 232 121 249; }
+.swatch--amber  { --sw-a: 251 191 36;  --sw-b: 251 146 60; }
+
+.swatch:hover span {
+  color: var(--text-strong);
+  border-color: var(--accent-line);
+}
+
+.swatch input:checked + span {
+  color: var(--text-strong);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.swatch input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Range sliders ---------- */
+
+.studio input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 1.75rem;
+  background: transparent;
+  cursor: pointer;
+}
+
+.studio input[type="range"]::-webkit-slider-runnable-track {
+  height: 0.4rem;
+  border-radius: var(--radius-pill);
+  background: rgb(160 196 255 / 0.18);
+}
+
+.studio input[type="range"]::-moz-range-track {
+  height: 0.4rem;
+  border-radius: var(--radius-pill);
+  background: rgb(160 196 255 / 0.18);
+}
+
+.studio input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.4rem;
+  height: 1.4rem;
+  margin-top: -0.5rem;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--navy-900);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px var(--accent-glow);
+  transition: transform var(--dur-fast) var(--ease-spring);
+}
+
+.studio input[type="range"]::-moz-range-thumb {
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 3px solid var(--navy-900);
+  box-shadow: 0 0 0 1px var(--accent), 0 0 14px var(--accent-glow);
+}
+
+.studio input[type="range"]:hover::-webkit-slider-thumb,
+.studio input[type="range"]:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+.studio input[type="range"]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: var(--radius-pill);
+}
+
+/* ---------- Segmented controls ---------- */
+
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  border-radius: var(--radius-pill);
+  background: rgb(3 8 19 / 0.5);
+  border: 1px solid var(--glass-border);
+}
+
+.segmented label {
+  position: relative;
+  display: block;
+}
+
+.segmented input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.segmented span {
+  display: grid;
+  place-items: center;
+  min-height: 2.4rem;
+  padding: 0.35rem 0.6rem;
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  text-align: center;
+  color: var(--text-muted);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out);
+}
+
+.segmented label:hover span {
+  color: var(--text-strong);
+}
+
+.segmented input:checked + span {
+  color: var(--text-on-accent);
+  background: var(--accent);
+  font-weight: var(--fw-semibold);
+}
+
+.segmented input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Toggles (checkbox switches) ---------- */
+
+.toggle {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: 2.5rem;
+  cursor: pointer;
+  color: var(--text-strong);
+}
+
+.toggle input {
+  position: absolute;
+  opacity: 0;
+  width: 2.75rem;
+  height: 1.6rem;
+  margin: 0;
+  cursor: pointer;
+}
+
+.toggle span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--fs-sm);
+}
+
+.toggle span::before {
+  content: "";
+  flex: none;
+  width: 2.75rem;
+  height: 1.6rem;
+  border-radius: var(--radius-pill);
+  background:
+    radial-gradient(circle at 0.8rem 50%, #fff 0 0.55rem, transparent 0.6rem) no-repeat,
+    rgb(160 196 255 / 0.18);
+  background-position: 0 0, 0 0;
+  border: 1px solid var(--glass-border);
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.toggle input:checked + span::before {
+  background:
+    radial-gradient(circle at calc(100% - 0.8rem) 50%, #fff 0 0.55rem, transparent 0.6rem) no-repeat,
+    var(--accent);
+  border-color: var(--accent);
+}
+
+.toggle input:focus-visible + span::before {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+/* ---------- Actions and note ---------- */
+
+.studio__actions {
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--glass-border);
+}
+
+.studio__actions .btn {
+  width: 100%;
+}
+
+.studio__note {
+  font-size: var(--fs-xs);
+  color: var(--text-faint);
+  text-align: center;
+}
+
+/* ---------- Reduced motion / forced colours ---------- */
+
+:root[data-motion="reduced"] .studio,
+:root[data-motion="reduced"] .studio-backdrop {
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root[data-motion="auto"] .studio,
+  :root[data-motion="auto"] .studio-backdrop {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .studio {
+    background: Canvas;
+    border: 1px solid CanvasText;
+  }
+
+  .swatch input:checked + span,
+  .segmented input:checked + span {
+    outline: 2px solid Highlight;
+  }
+
+  .toggle input:checked + span::before {
+    background: Highlight;
+  }
+}

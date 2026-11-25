@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en" data-accent="cyan" data-motion="auto" data-density="comfortable">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#050b1a">
+  <meta name="robots" content="noindex">
+
+  <title>Page not found — [YOUR NAME]</title>
+  <meta name="description" content="This page could not be found.">
+
+  <link rel="icon" href="/claude_port/assets/favicon.svg" type="image/svg+xml">
+
+  <!--
+    GitHub Pages serves 404.html for any missing URL, at any depth
+    (e.g. /claude_port/foo/bar). Relative paths would break there, so this
+    file uses ABSOLUTE paths that start with the repository name.
+    If your repository is not named "claude_port", or you publish at a
+    user/organisation root (https://USER.github.io/), change every
+    "/claude_port/" below (and the BASE constant in the script) to match
+    ("/" for a root site).
+  -->
+  <link rel="stylesheet" href="/claude_port/css/tokens.css">
+  <link rel="stylesheet" href="/claude_port/css/base.css">
+  <link rel="stylesheet" href="/claude_port/css/glass.css">
+  <link rel="stylesheet" href="/claude_port/css/layout.css">
+
+  <style>
+    .nf {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: grid;
+      place-items: center;
+      padding: var(--gutter);
+      position: relative;
+      z-index: var(--z-content);
+    }
+
+    .nf__card {
+      display: grid;
+      justify-items: center;
+      gap: var(--space-4);
+      width: min(34rem, 100%);
+      padding: var(--space-7) var(--space-6);
+      text-align: center;
+    }
+
+    .nf__code {
+      font-family: var(--font-display);
+      font-size: clamp(4.5rem, 3rem + 10vw, 8rem);
+      font-weight: var(--fw-black);
+      line-height: 1;
+      letter-spacing: var(--tracking-tight);
+    }
+
+    .nf__title {
+      font-size: var(--fs-xl);
+    }
+
+    .nf__text {
+      max-width: 26rem;
+      color: var(--text-muted);
+    }
+
+    .nf__actions {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: var(--space-3);
+      margin-top: var(--space-3);
+    }
+  </style>
+</head>
+
+<body>
+  <a class="skip-link" href="#main">Skip to main content</a>
+
+  <div class="bg-layer" aria-hidden="true">
+    <div class="bg-layer__grid"></div>
+    <div class="bg-layer__glow bg-layer__glow--a"></div>
+    <div class="bg-layer__glow bg-layer__glow--b"></div>
+  </div>
+
+  <main id="main" class="nf" tabindex="-1">
+    <section class="nf__card glass" aria-labelledby="nf-title">
+      <p class="eyebrow">Error 404</p>
+      <p class="nf__code text-gradient" aria-hidden="true">404</p>
+      <h1 id="nf-title" class="nf__title">Page not found</h1>
+      <p class="nf__text">
+        The page you were looking for does not exist or has moved.
+        Let's get you back to the portfolio.
+      </p>
+      <div class="nf__actions">
+        <a id="nf-home" class="btn btn--primary" href="/claude_port/">
+          <span>Back to home</span>
+        </a>
+        <a id="nf-projects" class="btn btn--ghost" href="/claude_port/#projects">
+          <span>View projects</span>
+        </a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    (function () {
+      // Must match the repository name used in the absolute paths above.
+      var BASE = '/claude_port/';
+
+      // Apply saved Design Studio preferences so the 404 page matches the site.
+      try {
+        var raw = window.localStorage.getItem('claude_port:prefs');
+        if (raw) {
+          var prefs = JSON.parse(raw);
+          var root = document.documentElement;
+          var accents = ['cyan', 'azure', 'mint', 'violet', 'amber'];
+          var motions = ['auto', 'full', 'reduced'];
+          if (accents.indexOf(prefs.accent) !== -1) root.dataset.accent = prefs.accent;
+          if (motions.indexOf(prefs.motion) !== -1) root.dataset.motion = prefs.motion;
+          if (typeof prefs.glass === 'number') root.style.setProperty('--glass-level', String(prefs.glass));
+        }
+      } catch (e) { /* storage unavailable: keep defaults */ }
+
+      // Keep the home link correct if the site is hosted at a different base.
+      var home = document.getElementById('nf-home');
+      var projects = document.getElementById('nf-projects');
+      if (home) home.setAttribute('href', BASE);
+      if (projects) projects.setAttribute('href', BASE + '#projects');
+    })();
+  </script>
+</body>
+</html>
