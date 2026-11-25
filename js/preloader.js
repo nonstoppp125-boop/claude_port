@@ -100,7 +100,6 @@ export async function runPreloader(options = {}) {
     const whole = Math.round(v * 100);
     if (bar) bar.style.setProperty('--progress', v.toFixed(3));
     if (percent) percent.textContent = String(whole);
-    root.setAttribute('aria-valuenow', String(whole));
 
     const index = Math.min(messages.length - 1, Math.floor(v * messages.length));
     if (index !== lastMessage) {
