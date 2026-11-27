@@ -1,0 +1,465 @@
+<script type="module">
+import {
+  ACESFilmicToneMapping, Box3, BufferGeometry, Color, FrontSide, Group,
+  LinearMipmapLinearFilter, Matrix4, Mesh, MeshStandardMaterial, PerspectiveCamera,
+  PlaneGeometry, PMREMGenerator, RepeatWrapping, Scene, ShaderMaterial,
+  SRGBColorSpace, Texture, TextureLoader, Vector2, Vector3, WebGLRenderer,
+} from "three";
+import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
+import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
+import { RGBELoader } from "three/addons/loaders/RGBELoader.js";
+import { mergeGeometries } from "three/addons/utils/BufferGeometryUtils.js";
+import Lenis from "lenis";
+
+/* ==========================================================================
+   BOOT BASICS
+   ========================================================================== */
+history.scrollRestoration = "manual";
+window.scrollTo(0, 0);
+
+const ASSET_BASE_URL = "https://storage.getlayers.ai/assets/kimi-04a9449ab2";
+const asset = (path) => \`${ASSET_BASE_URL}/${path}\`;
+const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const COARSE = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+const clamp01 = (v) => Math.min(1, Math.max(0, v));
+
+/* Failed asset load must be visible: a banner naming the URL */
+function showAssetError(url) {
+  let banner = document.getElementById("asset-banner");
+  if (!banner) {
+    banner = document.createElement("div");
+    banner.id = "asset-banner";
+    banner.className = "asset-banner";
+    banner.setAttribute("role", "alert");
+    document.body.appendChild(banner);
+  }
+  const line = document.createElement("div");
+  line.textContent = "Failed to load: " + url;
+  banner.appendChild(line);
+}
+
+/* Above 1920 the root keeps scaling: 16 * innerWidth / 1920 */
+function setRootFont() {
+  const w = window.innerWidth;
+  document.documentElement.style.fontSize = w > 1920 ? (16 * w) / 1920 + "px" : "";
+}
+setRootFont();
+window.addEventListener("resize", setRootFont);
+
+/* ==========================================================================
+   THE TICKER: one rAF loop, reference counted.
+   A subscriber runs only when time - last > getFramerate().
+   ========================================================================== */
+const subs = new Set();
+let rafId = 0;
+function loop(time) {
+  rafId = requestAnimationFrame(loop);
+  for (const s of Array.from(subs)) {
+    if (!subs.has(s)) continue;
+    if (time - s.last > s.fr()) {
+      s.last = time;
+      try { s.cb(time); } catch (e) { console.error(e); }
+    }
+  }
+}
+function subscribe(cb, getFramerate = () => 0) {
+  const s = { cb, fr: getFramerate, last: -Infinity };
+  subs.add(s);
+  if (!rafId) rafId = requestAnimationFrame(loop);
+  return () => {
+    subs.delete(s);
+    if (!subs.size && rafId) { cancelAnimationFrame(rafId); rafId = 0; }
+  };
+}
+
+/* Lenis rides the same loop, registered FIRST. Skipped under reduced motion. */
+let lenis = null;
+if (!REDUCED) {
+  lenis = new Lenis({ smoothWheel: true });
+  subscribe((time) => lenis.raf(time), () => 0);
+}
+if (lenis) lenis.scrollTo(0, { immediate: true });
+
+function lockScroll() {
+  if (lenis) lenis.stop();
+  document.documentElement.classList.add("menu-open");
+}
+function unlockScroll() {
+  document.documentElement.classList.remove("menu-open");
+  if (lenis) lenis.start();
+}
+
+/* ==========================================================================
+   THE SPRING (react-spring's damped spring, 1ms substeps, 64ms frame cap)
+   ========================================================================== */
+const CFG = {
+  reveal:   { tension: 90,  friction: 26 },
+  item:     { tension: 170, friction: 24 },
+  row:      { tension: 170, friction: 24 },
+  sheet:    { tension: 190, friction: 26 },
+  figure:   { tension: 200, friction: 24 },
+  type:     { tension: 210, friction: 24 },
+  year:     { tension: 190, friction: 24 },
+  copy:     { tension: 150, friction: 24 },
+  tlcopy:   { tension: 110, friction: 26 },
+  name:     { tension: 190, friction: 24 },
+  veil:     { tension: 70,  friction: 24 },
+  clear:    { tension: 140, friction: 26 },
+  label:    { tension: 110, friction: 26 },
+  waiting:  { tension: 10,  friction: 30 },
+  ready:    { tension: 170, friction: 26 },
+  settle:   { tension: 32,  friction: 26 },
+  trigger:  { tension: 140, friction: 30 },
+};
+
+class Spring {
+  constructor({ value = 0, tension = 170, friction = 26, mass = 1, precision = 0.001, onUpdate, onRest }) {
+    this.value = value; this.velocity = 0; this.target = value;
+    this.tension = tension; this.friction = friction; this.mass = mass;
+    this.precision = precision; this.onUpdate = onUpdate; this.onRest = onRest;
+    this.startAt = 0; this.lastT = null; this.un = null;
+    if (this.onUpdate) this.onUpdate(this.value);
+  }
+  set(v) {
+    this._stop();
+    this.value = v; this.target = v; this.velocity = 0;
+    if (this.onUpdate) this.onUpdate(v);
+  }
+  to(target, delay = 0) {
+    if (REDUCED) { this.set(target); if (this.onRest) this.onRest(target); return; }
+    this.target = target;
+    this.startAt = performance.now() + delay;
+    this.lastT = null;
+    if (!this.un) this.un = subscribe((t) => this._tick(t));
+  }
+  _stop() { if (this.un) { this.un(); this.un = null; } }
+  _tick(time) {
+    if (performance.now() < this.startAt) return;
+    const dt = this.lastT == null ? 16 : Math.min(64, time - this.lastT);
+    this.lastT = time;
+    const n = Math.max(1, Math.ceil(dt));
+    for (let i = 0; i < n; i += 1) {
+      const force = -this.tension * (this.value - this.target);
+      const damping = -this.friction * this.velocity;
+      this.velocity += ((force + damping) / this.mass) * 0.001;
+      this.value += this.velocity * 0.001;
+    }
+    const atRest = Math.abs(this.velocity) < this.precision * 10 &&
+                   Math.abs(this.target - this.value) < this.precision * 10;
+    if (atRest) {
+      this.value = this.target; this.velocity = 0;
+      if (this.onUpdate) this.onUpdate(this.value);
+      this._stop();
+      if (this.onRest) this.onRest(this.value);
+      return;
+    }
+    if (this.onUpdate) this.onUpdate(this.value);
+  }
+}
+
+/* ==========================================================================
+   TWEENS AND LOOP CLOCKS
+   ========================================================================== */
+const EASE = {
+  linear: (t) => t,
+  outQuad: (t) => 1 - (1 - t) * (1 - t),
+  outCubic: (t) => 1 - Math.pow(1 - t, 3),
+  inOutSine: (t) => -(Math.cos(Math.PI * t) - 1) / 2,
+};
+
+/* one-shot tween: returns cancel() */
+function tween(ms, ease, onUpdate, onDone) {
+  const t0 = performance.now();
+  let un = null;
+  un = subscribe(() => {
+    const p = Math.min(1, (performance.now() - t0) / ms);
+    onUpdate(ease(p), p);
+    if (p >= 1) { un(); if (onDone) onDone(); }
+  });
+  return () => { if (un) un(); };
+}
+
+/* in view + ten more frames, on the shared ticker (the "loop in view" rule) */
+function loopInView(el, cb, getFramerate = () => 0) {
+  let vis = false, tail = 0;
+  const io = new IntersectionObserver((es) => { vis = es[es.length - 1].isIntersecting; });
+  io.observe(el);
+  const un = subscribe((t) => {
+    if (vis) tail = 10;
+    else if (tail > 0) tail -= 1;
+    else return;
+    cb(t);
+  }, getFramerate);
+  return () => { io.disconnect(); un(); };
+}
+
+/* looping clock, only while in view: cb(eased 0..1) */
+function loopClock(el, ms, ease, cb) {
+  return loopInView(el, () => cb(ease((performance.now() % ms) / ms)));
+}
+
+/* ==========================================================================
+   IN-VIEW GATES
+   ========================================================================== */
+function inView(el, { rootMargin = "0px", once = false } = {}, cb) {
+  const io = new IntersectionObserver((es) => {
+    for (const e of es) {
+      cb(e.isIntersecting);
+      if (once && e.isIntersecting) io.disconnect();
+    }
+  }, { rootMargin });
+  io.observe(el);
+  return () => io.disconnect();
+}
+
+/* "forward": plays in when on screen; once the element is above the
+   viewport top it HOLDS the in state instead of reversing */
+const fwSet = new Set();
+let fwQueued = false;
+function fwFlush() { fwQueued = false; fwSet.forEach((w) => w.check()); }
+function fwSchedule() { if (!fwQueued) { fwQueued = true; requestAnimationFrame(fwFlush); } }
+window.addEventListener("scroll", fwSchedule, { passive: true });
+window.addEventListener("resize", fwSchedule);
+
+function watchForward(el, cb, rootMargin = "0px") {
+  let intersecting = false, entered = false, last = null;
+  const w = {
+    check() {
+      const down = el.getBoundingClientRect().top <= 0;
+      const active = intersecting || (entered && down);
+      if (active !== last) { last = active; cb(active); }
+    },
+  };
+  const io = new IntersectionObserver((es) => {
+    for (const e of es) { intersecting = e.isIntersecting; if (intersecting) entered = true; }
+    w.check();
+  }, { rootMargin });
+  io.observe(el);
+  fwSet.add(w);
+  return () => { io.disconnect(); fwSet.delete(w); };
+}
+
+/* the hero's entrance clock starts here (called by the loading veil) */
+let heroResolve;
+const heroReady = new Promise((r) => { heroResolve = r; });
+function handover() { heroResolve(); }
+
+function bindGate(el, when, activate, rootMargin = "0% 0% -10% 0%") {
+  if (when === "hero") { heroReady.then(() => activate(true)); return; }
+  if (when === "once") { inView(el, { rootMargin, once: true }, (v) => { if (v) activate(true); }); return; }
+  if (when === "always") { inView(el, { rootMargin }, activate); return; }
+  watchForward(el, activate, rootMargin);
+}
+
+/* ==========================================================================
+   SCROLL TRIGGERS
+   scrub: from -> to by progress, applied immediately.
+   Only computes while the element is in view plus ten frames after.
+   ========================================================================== */
+function parseVal(v) {
+  if (typeof v === "number") return { kind: "num", n: v };
+  let m = /^\s*(-?[\d.]+)\s*([a-z%]*)\s*$/i.exec(v);
+  if (m) return { kind: "unit", n: +m[1], u: m[2] };
+  m = /^\s*([\w-]+)\(\s*(-?[\d.]+)\s*([a-z%]*)\s*\)\s*$/i.exec(v);
+  if (m) return { kind: "fn", f: m[1], n: +m[2], u: m[3] };
+  return { kind: "raw", v };
+}
+function interp(from, to, p) {
+  const a = parseVal(from), b = parseVal(to);
+  if (a.kind === "num") return a.n + (b.n - a.n) * p;
+  const n = a.n + (b.n - a.n) * p;
+  if (a.kind === "unit") return \`${n}${a.u || b.u}\`;
+  if (a.kind === "fn") return \`${a.f}(${n}${a.u || b.u})\`;
+  return p >= 1 ? to : from;
+}
+
+function scrollTrigger(el, { start = "top bottom", end = "bottom top", from = 0, to = 1, onUpdate, onSmooth, framerate = 10 }) {
+  const [se, sv] = start.split(" ");
+  const [ee, ev] = end.split(" ");
+  let vis = false, tail = 0, last = NaN;
+  const smooth = onSmooth
+    ? new Spring({ value: 0, ...CFG.trigger, onUpdate: onSmooth })
+    : null;
+
+  const io = new IntersectionObserver((es) => { vis = es[es.length - 1].isIntersecting; });
+  io.observe(el);
+
+  function compute() {
+    const bb = el.getBoundingClientRect();
+    const vh = window.innerHeight || 1;
+    const pos = (edge, vp) => {
+      const e = edge === "top" ? bb.top : edge === "center" ? bb.top + bb.height / 2 : bb.bottom;
+      const v = vp === "top" ? 0 : vp === "center" ? vh / 2 : vh;
+      return e - v;
+    };
+    const scrollStart = pos(se, sv);
+    const scrollEnd = pos(ee, ev);
+    const length = Math.abs(scrollStart - scrollEnd) || 1;
+    const progress = Math.min(Math.max(0, 1 - (scrollStart + length) / length), 1);
+    if (progress === last) return;
+    last = progress;
+    if (onUpdate) onUpdate(interp(from, to, progress), progress);
+    if (smooth) smooth.to(progress);
+  }
+
+  const un = subscribe(() => {
+    if (vis) tail = 10;
+    else if (tail > 0) tail -= 1;
+    else return;
+    compute();
+  }, () => framerate);
+
+  compute();
+  return {
+    refresh() { last = NaN; compute(); },
+    destroy() { io.disconnect(); un(); },
+  };
+}
+
+/* ==========================================================================
+   THE TEXT ENGINE AND BLOCK RISES
+   data-tx="words|letters" data-stagger data-delay data-gap data-cfg data-when
+   data-rise="<delay>" data-y="<length>" data-scale="x" data-cfg data-when
+   Each unit is its own spring; the plain string is kept in a sr-only copy.
+   ========================================================================== */
+function parseLen(s) {
+  const m = /^(-?[\d.]+)([a-z%]*)$/i.exec(s || "0px");
+  return m ? { n: +m[1], u: m[2] || "px" } : { n: 0, u: "px" };
+}
+
+function buildText(el) {
+  const mode = el.dataset.tx;
+  const text = el.textContent.replace(/\s+/g, " ").trim();
+  const stagger = +el.dataset.stagger || 0;
+  const delay = +el.dataset.delay || 0;
+  const cfg = CFG[el.dataset.cfg] || CFG.reveal;
+  const when = el.dataset.when || "forward";
+  const dist = mode === "words" ? 0.35 : 0.3;
+
+  if (getComputedStyle(el).display === "inline") el.style.display = "block";
+
+  const sr = document.createElement("span");
+  sr.className = "sr-only";
+  sr.textContent = text;
+
+  const wrap = document.createElement("span");
+  wrap.className = "tx" + (mode === "letters" ? " tx--letters" : "");
+  wrap.setAttribute("aria-hidden", "true");
+  wrap.style.setProperty("--tx-gap", el.dataset.gap || "0.3em");
+
+  const units = [];
+  const mk = (s) => {
+    const u = document.createElement("span");
+    u.className = "tx-u";
+    u.textContent = s;
+    units.push(u);
+    return u;
+  };
+  text.split(" ").forEach((w) => {
+    if (mode === "words") {
+      wrap.appendChild(mk(w));
+    } else {
+      const g = document.createElement("span");
+      g.className = "tx-w";
+      g.style.cssText = "display:inline-flex;white-space:nowrap";
+      for (const ch of w) g.appendChild(mk(ch));
+      wrap.appendChild(g);
+    }
+  });
+
+  el.textContent = "";
+  el.append(sr, wrap);
+
+  const springs = units.map((u) => new Spring({
+    ...cfg, precision: 0.001,
+    onUpdate: (t) => {
+      u.style.opacity = String(clamp01(t));
+      u.style.transform = \`translateY(${(dist * (1 - t)).toFixed(4)}em)\`;
+    },
+  }));
+
+  const activate = (on) => {
+    springs.forEach((s, i) => { if (on) s.to(1, delay + i * stagger); else s.to(0, 0); });
+  };
+  bindGate(el, when, activate);
+}
+
+function buildRise(el) {
+  const delay = +el.dataset.rise || 0;
+  const cfg = CFG[el.dataset.cfg] || CFG.reveal;
+  const when = el.dataset.when || "forward";
+  const { n, u } = parseLen(el.dataset.y || "0px");
+  const scaleX = el.dataset.scale === "x";
+
+  if (getComputedStyle(el).display === "inline") el.style.display = "inline-block";
+  if (scaleX) el.style.transformOrigin = "left";
+
+  const sp = new Spring({
+    ...cfg, precision: 0.001,
+    onUpdate: (t) => {
+      el.style.opacity = String(clamp01(t));
+      el.style.transform = scaleX ? \`scaleX(${Math.max(0, t)})\` : \`translateY(${n * (1 - t)}${u})\`;
+    },
+    onRest: (v) => {
+      /* a settled transform would make the node a containing block; drop it */
+      if (v === 1) { el.style.transform = ""; el.style.opacity = ""; }
+    },
+  });
+  bindGate(el, when, (on) => sp.to(on ? 1 : 0, on ? delay : 0));
+}
+
+/* Call after the JS builders have inserted their markup (Part 10 calls it once;
+   builders that add rows later call initReveals(container) themselves). */
+function initReveals(root = document) {
+  root.querySelectorAll("[data-tx]").forEach((el) => {
+    if (el.dataset.txReady) return;
+    el.dataset.txReady = "1";
+    buildText(el);
+  });
+  root.querySelectorAll("[data-rise]").forEach((el) => {
+    if (el.dataset.riseReady) return;
+    el.dataset.riseReady = "1";
+    buildRise(el);
+  });
+}
+
+/* ==========================================================================
+   THE STICKY STACK: recede = scale 0.9 + 55% black shade
+   The transform lives on the inner wrapper, never on the sticky element.
+   ========================================================================== */
+const RECEDE_SCALE = 0.9;
+const RECEDE_SHADE = 0.55;
+
+function initStack() {
+  const layers = Array.from(document.querySelectorAll("#stack > .stack__layer"));
+  const pinned = layers.slice(0, -1).map((layer, i) => ({
+    inner: layer.querySelector(".stack__inner"),
+    shade: layer.querySelector(".stack__shade"),
+    next: layers[i + 1],
+  }));
+  const phone = window.matchMedia("(max-width: 639px)");
+
+  const apply = () => {
+    const view = window.innerHeight || 1;
+    const shrink = phone.matches ? 0 : 1 - RECEDE_SCALE;
+    for (const { inner, shade, next } of pinned) {
+      const p = Math.min(1, Math.max(0, 1 - next.getBoundingClientRect().top / view));
+      inner.style.transform = p > 0 && shrink > 0 ? \`scale(${1 - shrink * p})\` : "";
+      inner.style.willChange = p > 0 && shrink > 0 ? "transform" : "";
+      shade.style.opacity = \`${RECEDE_SHADE * p}\`;
+      inner.style.visibility = p >= 1 ? "hidden" : "visible";
+    }
+  };
+
+  let queued = false;
+  const schedule = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; apply(); });
+  };
+  window.addEventListener("scroll", schedule, { passive: true });
+  window.addEventListener("resize", schedule);
+  apply();
+}
+
+/* ===== PART 4 ENDS HERE. Parts 5 to 10 continue inside this same script. ===== */
