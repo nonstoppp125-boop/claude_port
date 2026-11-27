@@ -1,0 +1,286 @@
+<!-- EXTRA-CSS-HERE : Part 8 ar Part 9-er <style> block gulo ei line-er jaygay boshbe -->
+</head>
+<body>
+
+<!-- shared SVG symbols -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <symbol id="bk" viewBox="0 0 10.5 10.5"><path d="M0 0.5H10V10.5"/></symbol>
+</svg>
+
+<!-- ======================= LOADING VEIL ======================= -->
+<div id="veil" class="veil" role="status" aria-label="Loading Grido1 Racing Systems">
+  <div class="veil__content" id="veil-content">
+    <div class="veil__helmet" aria-hidden="true">
+      <div class="veil__shell"></div>
+      <div class="veil__fill" id="veil-fill"></div>
+    </div>
+    <p class="veil__name display" id="veil-name" style="font-weight:400">kimi antonelli</p>
+  </div>
+  <div class="veil__meter" id="veil-meter"><div class="veil__meter-fill" id="veil-meter-fill"></div></div>
+</div>
+
+<!-- ======================= STACK (hero, season, timeline) ======================= -->
+<div class="stack" id="stack">
+
+  <!-- ---------- 1. HERO ---------- -->
+  <div class="stack__layer" data-layer>
+    <div class="stack__inner">
+      <section data-hero class="hero" id="hero" aria-label="Kimi Antonelli">
+        <div class="hero__canvas-wrap" id="hero-canvas-wrap">
+          <canvas id="hero-canvas" aria-hidden="true"></canvas>
+        </div>
+        <div class="hero__fallback" id="hero-fallback" hidden>
+          <img data-asset="hero/scene/person-diffuse.webp" alt="" aria-hidden="true">
+        </div>
+        <div class="hero__fit" aria-hidden="true"><div class="hero__fit-box" id="hero-fit-box"></div></div>
+        <div class="hero__ramp" aria-hidden="true"></div>
+        <div class="hero__ramp2" aria-hidden="true"></div>
+
+        <div class="hero__content">
+          <header class="masthead" data-rise="0" data-y="1.25rem" data-cfg="reveal" data-when="hero">
+            <a class="masthead__logo" href="/" aria-label="Grido1 Racing Systems">
+              <img data-asset="hero/ui/grido1-logo.webp" width="424" height="97" alt="">
+            </a>
+            <nav class="masthead__nav" aria-label="Primary">
+              <ul>
+                <li><a class="masthead__link" href="/driver">Driver</a></li>
+                <li><a class="masthead__link" href="/season">SEASON</a></li>
+                <li><a class="masthead__link" href="/journal">journal</a></li>
+                <li><a class="masthead__link" href="/next-race">next race</a></li>
+                <li><a class="masthead__link" href="/store">store</a></li>
+              </ul>
+            </nav>
+            <a class="masthead__link masthead__garage" href="/garage"><span aria-hidden="true">[ </span>Garage<span aria-hidden="true"> → ]</span></a>
+            <button class="burger" id="burger" type="button" aria-label="Open menu" aria-haspopup="dialog" aria-expanded="false">
+              <span class="burger__lines"><i></i><i></i></span>
+            </button>
+          </header>
+
+          <div class="hero__mid">
+            <div class="identity" style="order:2">
+              <p class="identity__id" data-rise="180" data-y="0px" data-cfg="reveal" data-when="hero">driver_012</p>
+              <h1 class="identity__name"><span data-tx="words" data-stagger="110" data-cfg="reveal" data-delay="180" data-when="hero">kimi antonelli</span></h1>
+              <ul class="identity__meta">
+                <li class="meta-row" data-rise="440" data-y="0.75rem" data-cfg="reveal" data-when="hero">
+                  <img data-asset="hero/ui/flag-italy.webp" width="18" height="12" style="width:1.125rem" alt="Italy"><span>Italy</span></li>
+                <li class="meta-row" data-rise="570" data-y="0.75rem" data-cfg="reveal" data-when="hero">
+                  <img data-asset="hero/ui/icon-rookie.svg" width="16" height="16" style="width:1rem" alt="" aria-hidden="true"><span>rookie season_2026</span></li>
+                <li class="meta-row" data-rise="700" data-y="0.75rem" data-cfg="reveal" data-when="hero">
+                  <img data-asset="hero/ui/mercedes-logo.webp" width="14" height="14" style="width:0.875rem" alt="" aria-hidden="true"><span>Mercedes-AMG F1 Team</span></li>
+              </ul>
+            </div>
+
+            <div class="panels" data-hero-panels style="order:3" data-rise="900" data-y="1.25rem" data-cfg="reveal" data-when="hero">
+              <div class="bracket">
+                <svg class="bracket__c bracket__c--tr" aria-hidden="true"><use href="#bk"/></svg>
+                <svg class="bracket__c bracket__c--tl" aria-hidden="true"><use href="#bk"/></svg>
+                <svg class="bracket__c bracket__c--bl" aria-hidden="true"><use href="#bk"/></svg>
+                <svg class="bracket__c bracket__c--br" aria-hidden="true"><use href="#bk"/></svg>
+                <p class="eyebrow">next race</p>
+                <div class="race-body">
+                  <dl class="race-dl">
+                    <dt>belgian gp</dt>
+                    <dd>spa-francorchamps</dd>
+                    <dd><time datetime="2026-07-27">27 jul 2026</time></dd>
+                  </dl>
+                  <img class="race-map" data-hero-map data-asset="hero/ui/circuit-spa.webp" width="312" height="199" alt="Spa-Francorchamps circuit layout">
+                </div>
+              </div>
+              <div class="bracket">
+                <svg class="bracket__c bracket__c--tr" aria-hidden="true"><use href="#bk"/></svg>
+                <svg class="bracket__c bracket__c--tl" aria-hidden="true"><use href="#bk"/></svg>
+                <svg class="bracket__c bracket__c--bl" aria-hidden="true"><use href="#bk"/></svg>
+                <svg class="bracket__c bracket__c--br" aria-hidden="true"><use href="#bk"/></svg>
+                <p class="eyebrow">Season stats</p>
+                <dl class="stats-dl" data-hero-stats>
+                  <div><dt>Races</dt><dd><span data-tx="letters" data-stagger="26" data-cfg="figure" data-delay="0" data-when="forward">12</span></dd></div>
+                  <div><dt>Podiums</dt><dd><span data-tx="letters" data-stagger="26" data-cfg="figure" data-delay="90" data-when="forward">3</span></dd></div>
+                  <div><dt>Points</dt><dd><span data-tx="letters" data-stagger="26" data-cfg="figure" data-delay="180" data-when="forward">118</span></dd></div>
+                </dl>
+              </div>
+            </div>
+          </div>
+
+          <div class="actions" data-rise="1500" data-y="1.25rem" data-cfg="reveal" data-when="hero">
+            <a class="trailer" href="/trailer">
+              <img data-asset="hero/ui/play-button.svg" width="32" height="32" alt="" aria-hidden="true">
+              <span class="trailer__text"><b>watch trailer</b><span>01:26</span></span>
+            </a>
+            <a class="cta" href="/driver/kimi-antonelli">
+              <svg class="cta__frame" viewBox="0 0 220 50" preserveAspectRatio="none" aria-hidden="true">
+                <path class="cta__body" d="M220 42L212.932 50H0V0H220V42Z"/>
+                <path class="cta__flood" d="M220 42L212.932 50H0V0H220V42Z"/>
+                <path class="cta__ring" d="M220 42L212.932 50H0V0H220V42Z"/>
+                <path class="cta__brackets" d="M205 49.5H213L219.5 42V36M212 0.5H219.5V7M8 0.5H0.5V7M7.5 49.5H0.5V42.5"/>
+              </svg>
+              <span class="cta__label">view profile</span>
+              <svg class="cta__arrow" viewBox="0 0 13.7071 10.7071" aria-hidden="true"><path d="M0 5.35355H13M8 10.3536L13 5.35355L8 0.353553"/></svg>
+            </a>
+            <div class="socials">
+              <a href="https://instagram.com" rel="noopener">inst</a>
+              <a href="https://x.com" rel="noopener">x</a>
+              <a href="https://youtube.com" rel="noopener">youtube</a>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="stack__shade"></div>
+  </div>
+
+  <!-- ---------- 2. SEASON ---------- -->
+  <div class="stack__layer stack__layer--2" data-layer>
+    <div class="stack__inner">
+      <section data-season class="season" id="season" aria-labelledby="season-h">
+        <div class="season__frame" id="season-frame" aria-hidden="true">
+          <div class="season__stage" id="season-stage">
+            <div class="season__map" id="season-map"></div>   <!-- Part 8 builds: halftone canvas + map SVG -->
+            <canvas class="season__trace" id="season-trace"></canvas>
+          </div>
+        </div>
+        <canvas class="dissolve" data-dissolve data-carry="light" aria-hidden="true"></canvas>
+
+        <div class="season__copy">
+          <div class="season__left">
+            <h2 id="season-h" class="season__h display">
+              <span class="tx-line"><span data-tx="words" data-stagger="110" data-cfg="reveal" data-delay="0" data-when="forward">the season</span></span>
+              <span class="tx-line"><span data-tx="words" data-stagger="110" data-cfg="reveal" data-delay="130" data-when="forward">so far</span><span class="season__dot" data-rise="240" data-y="0px" data-cfg="reveal" data-when="forward" aria-hidden="true">.</span></span>
+            </h2>
+            <i class="season__rule" data-rise="260" data-scale="x" data-cfg="reveal" data-when="forward"></i>
+            <p class="season__intro upper"><span data-tx="words" data-stagger="34" data-gap="0.22em" data-cfg="copy" data-delay="350" data-when="forward">Every race is a step forward. Here's how the season is shaping up.</span></p>
+          </div>
+
+          <div class="plate" data-rise="260" data-y="0.75rem" data-cfg="reveal" data-when="forward">
+            <svg class="plate__frame" viewBox="0 0 277 78" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M0.5 0.5H276.5V69L268 77.5H0.5Z"/><path d="M83 0V78" class="plate__div"/>
+            </svg>
+            <div class="plate__badge">
+              <svg class="plate__globe" viewBox="0 0 37 23" aria-hidden="true">
+                <ellipse cx="18.5" cy="11.5" rx="18" ry="11"/><path d="M0.5 11.5H36.5"/><ellipse id="globe-meridian" cx="18.5" cy="11.5" rx="18" ry="11"/>
+              </svg>
+              <p class="plate__f1">
+                <span data-tx="letters" data-stagger="22" data-cfg="type" data-delay="430" data-when="forward" class="plate__w">F1</span>
+                <span data-tx="letters" data-stagger="22" data-cfg="type" data-delay="490" data-when="forward" class="plate__a">/ 2026</span>
+              </p>
+            </div>
+            <dl class="plate__stats">
+              <div><dt data-tx="letters" data-stagger="22" data-cfg="type" data-delay="430" data-when="forward">P1</dt><dd data-tx="letters" data-stagger="22" data-cfg="type" data-delay="500" data-when="forward">in the championship</dd></div>
+              <div><dt data-tx="letters" data-stagger="22" data-cfg="type" data-delay="540" data-when="forward">6</dt><dd data-tx="letters" data-stagger="22" data-cfg="type" data-delay="610" data-when="forward">wins</dd></div>
+              <div><dt data-tx="letters" data-stagger="22" data-cfg="type" data-delay="650" data-when="forward">9</dt><dd data-tx="letters" data-stagger="22" data-cfg="type" data-delay="720" data-when="forward">podiums.</dd></div>
+            </dl>
+          </div>
+        </div>
+      </section>
+    </div>
+    <div class="stack__shade"></div>
+  </div>
+
+  <!-- ---------- 3. TIMELINE (last layer, never pinned) ---------- -->
+  <div class="stack__layer stack__layer--last">
+    <section class="tl" id="timeline" aria-labelledby="tl-h">
+      <canvas class="dissolve" data-dissolve data-carry="light" aria-hidden="true"></canvas>
+      <div class="tl__wrap" id="tl-wrap">
+        <h2 id="tl-h" class="tl__h display">
+          <span class="tx-line"><span data-tx="words" data-stagger="110" data-cfg="reveal" data-delay="0" data-when="forward">from karts</span></span>
+          <span class="tx-line"><span data-tx="words" data-stagger="110" data-cfg="reveal" data-delay="130" data-when="forward">to f1</span><span class="tl__dot" data-rise="240" data-y="0px" data-cfg="reveal" data-when="forward" aria-hidden="true">.</span></span>
+        </h2>
+        <div class="tl__rail" id="tl-rail" aria-hidden="true"></div>   <!-- Part 9 builds the rail SVG -->
+        <div class="tl__rows" id="tl-rows"></div>                       <!-- Part 9 builds the 7 rows -->
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ======================= 4. PADDOCK ======================= -->
+<section class="pad" id="paddock" aria-labelledby="pad-h">
+  <canvas class="contour" id="pad-contour" data-contour="paddock" aria-hidden="true"></canvas>
+  <div class="pad__band" aria-hidden="true"></div>
+  <div class="pad__fig" id="pad-fig">
+    <img data-asset="paddock/portrait.webp" width="1350" height="1165" alt="Kimi Antonelli in the paddock">
+  </div>
+  <div class="pad__melt" aria-hidden="true"></div>
+  <canvas class="dissolve" data-dissolve data-carry="dark" aria-hidden="true"></canvas>
+
+  <h2 id="pad-h" class="pad__h display">
+    <span class="tx-line"><span data-tx="words" data-stagger="110" data-cfg="reveal" data-delay="0" data-when="forward">from the</span></span>
+    <span class="tx-line"><span data-tx="words" data-stagger="110" data-cfg="reveal" data-delay="130" data-when="forward">paddock</span><span class="pad__dot" data-rise="240" data-y="0px" data-cfg="reveal" data-when="forward" aria-hidden="true">.</span></span>
+  </h2>
+
+  <div class="pad__intro">
+    <p class="upper"><span data-tx="words" data-stagger="30" data-gap="0.22em" data-cfg="copy" data-delay="350" data-when="forward">A composed drive through a difficult weekend secured another podium — and kept Kimi at the top of the championship.</span></p>
+    <a class="btn2 btn2--dark" href="/stories/hungarian-gp" data-rise="520" data-y="0.75rem" data-cfg="reveal" data-when="forward">
+      <svg class="btn2__frame" viewBox="0 0 217 50" preserveAspectRatio="none" aria-hidden="true">
+        <path class="btn2__body" d="M0.5 0.5H216.5V42L209 49.5H0.5Z"/>
+        <path class="btn2__flood" d="M0.5 0.5H216.5V42L209 49.5H0.5Z"/>
+        <path class="btn2__ring" d="M0.5 0.5H216.5V42L209 49.5H0.5Z"/>
+      </svg>
+      <span class="btn2__label">read story</span>
+      <svg class="btn2__arrow" viewBox="0 0 13.7071 10.7071" aria-hidden="true"><path d="M0 5.35H13M8 10.35L13 5.35L8 0.35"/></svg>
+    </a>
+  </div>
+
+  <!-- right rail panels (hidden below sm). Part 9 CSS positions with --panel-u -->
+  <div class="pad__meet" id="pad-meet">
+    <div class="pad__frame" data-frame="meet" aria-hidden="true"></div>   <!-- Part 9 fills 4 corner brackets -->
+    <div class="pad__meet-text" data-rise="410" data-y="0.75rem" data-cfg="reveal" data-when="forward">
+      <b>hungarian gp</b><span>silverstone</span><span>july 12, 2026</span>
+    </div>
+  </div>
+  <div class="pad__stats" id="pad-stats">
+    <div class="pad__frame" data-frame="stats" aria-hidden="true"></div>
+    <ul class="pad__rows">
+      <li class="pad__row"><img data-asset="paddock/icon-flag.svg" alt="" aria-hidden="true"><div><span class="pad__lbl">last result</span><span class="pad__fig-n" data-tx="letters" data-stagger="24" data-cfg="figure" data-delay="580" data-when="forward">P4</span></div></li>
+      <li class="pad__row"><img data-asset="paddock/icon-bars.svg" alt="" aria-hidden="true"><div><span class="pad__lbl">points gained</span><span class="pad__fig-n" data-tx="letters" data-stagger="24" data-cfg="figure" data-delay="670" data-when="forward">+12</span></div></li>
+      <li class="pad__row"><img data-asset="paddock/icon-trophy.svg" alt="" aria-hidden="true"><div><span class="pad__lbl">championship</span><span class="pad__fig-n" data-tx="letters" data-stagger="24" data-cfg="figure" data-delay="760" data-when="forward">P1</span></div></li>
+      <li class="pad__row"><img data-asset="paddock/icon-gauge.svg" alt="" aria-hidden="true"><div><span class="pad__lbl">points</span><span class="pad__fig-n" data-tx="letters" data-stagger="24" data-cfg="figure" data-delay="850" data-when="forward">118</span></div></li>
+    </ul>
+  </div>
+
+  <div class="cal" id="cal" aria-label="Season calendar"></div>   <!-- Part 9 builds the 5 rounds -->
+</section>
+
+<!-- ======================= 5. FOOTER ======================= -->
+<footer class="foot" id="footer" aria-labelledby="foot-h">
+  <div class="foot__panel">
+    <canvas class="contour" id="foot-contour" data-contour="footer" aria-hidden="true"></canvas>
+  </div>
+
+  <div class="foot__fig" id="foot-fig" aria-hidden="true">
+    <div class="foot__fig-layer">
+      <img class="foot__body" data-asset="footer/body.webp" width="1536" height="1024" alt="">
+      <img class="foot__helmet" data-asset="footer/helmet.webp" width="1536" height="1024" alt="Kimi Antonelli's helmet">
+    </div>
+  </div>
+
+  <div class="foot__logo" role="img" aria-label="GRID01 Racing Systems" data-rise="120" data-y="0px" data-cfg="reveal" data-when="forward"></div>
+
+  <h2 id="foot-h" class="foot__h display">
+    <span class="tx-line"><span data-tx="words" data-stagger="110" data-cfg="reveal" data-delay="0" data-when="forward">keep pushing</span></span>
+    <span class="tx-line"><span data-tx="words" data-stagger="110" data-cfg="reveal" data-delay="130" data-when="forward">forward</span><span class="foot__dot" data-rise="240" data-y="0px" data-cfg="reveal" data-when="forward" aria-hidden="true">.</span></span>
+  </h2>
+
+  <nav class="foot__nav" aria-label="Footer">
+    <a href="/driver"><span data-tx="letters" data-stagger="22" data-gap="0.2em" data-cfg="row" data-delay="260" data-when="forward">driver</span></a>
+    <a href="/season"><span data-tx="letters" data-stagger="22" data-gap="0.2em" data-cfg="row" data-delay="340" data-when="forward">season</span></a>
+    <a href="/journal"><span data-tx="letters" data-stagger="22" data-gap="0.2em" data-cfg="row" data-delay="420" data-when="forward">journal</span></a>
+    <a href="/next-race"><span data-tx="letters" data-stagger="22" data-gap="0.2em" data-cfg="row" data-delay="500" data-when="forward">next race</span></a>
+    <a href="/store"><span data-tx="letters" data-stagger="22" data-gap="0.2em" data-cfg="row" data-delay="580" data-when="forward">store</span></a>
+  </nav>
+
+  <p class="foot__copy upper" data-rise="640" data-y="0.75rem" data-cfg="reveal" data-when="forward">© 2026 GRID01 Racing Systems. All rights reserved.</p>
+  <a class="btn2 btn2--hollow foot__legal" href="/legal" data-rise="720" data-y="0.75rem" data-cfg="reveal" data-when="forward">
+    <svg class="btn2__frame" viewBox="0 0 275 50" preserveAspectRatio="none" aria-hidden="true">
+      <path class="btn2__flood" d="M0.5 0.5H274.5V41.165L266.165 49.5H0.5Z"/>
+      <path class="btn2__ring" d="M0.5 0.5H274.5V41.165L266.165 49.5H0.5Z"/>
+    </svg>
+    <span class="btn2__label">legal documents</span>
+    <svg class="btn2__arrow" viewBox="0 0 13.7071 10.7071" aria-hidden="true"><path d="M0 5.35H13M8 10.35L13 5.35L8 0.35"/></svg>
+  </a>
+  <div class="foot__social" data-rise="800" data-y="0.75rem" data-cfg="reveal" data-when="forward">
+    <a href="https://instagram.com" rel="noopener">inst</a>
+    <a href="https://x.com" rel="noopener">x</a>
+    <a href="https://youtube.com" rel="noopener">youtube</a>
+  </div>
+</footer>
+
+<!-- SCRIPTS: Part 4 onward go here, then </body></html>
