@@ -1,0 +1,283 @@
+/* ==========================================================================
+   ASSET LOADER
+   <img data-asset="path"> -> crossorigin + src + visible failure banner.
+   Also sets the two CSS-mask URLs (veil helmet, footer wordmark).
+   ========================================================================== */
+function applyAsset(img) {
+  if (img.dataset.assetReady) return;
+  img.dataset.assetReady = "1";
+  const url = asset(img.dataset.asset);
+  img.crossOrigin = "anonymous";
+  img.addEventListener("error", () => showAssetError(url), { once: true });
+  img.src = url;
+}
+function loadAssets(root = document) {
+  root.querySelectorAll("img[data-asset]").forEach(applyAsset);
+}
+
+function setMaskAssets() {
+  document.documentElement.style.setProperty(
+    "--img-helmet-mask", \`url("\${asset("hero/ui/helmet-mask.png")}")\`
+  );
+  const logo = document.querySelector(".foot__logo");
+  if (logo) {
+    const u = \`url("\${asset("footer/logo-mask.png")}")\`;
+    logo.style.webkitMaskImage = u;
+    logo.style.maskImage = u;
+  }
+  /* masks fail silently, so probe them once and report */
+  ["hero/ui/helmet-mask.png", "footer/logo-mask.png"].forEach((p) => {
+    const probe = new Image();
+    probe.crossOrigin = "anonymous";
+    probe.onerror = () => showAssetError(asset(p));
+    probe.src = asset(p);
+  });
+}
+
+/* ==========================================================================
+   THE LOADING VEIL
+   Progress is not measured: it creeps to 0.7 on a soft spring and completes
+   to 1 on a stiff one the moment the scene reports ready.
+   Exit in three beats: content clears -> (430 + 240ms) -> veil lifts and the
+   page's entrance begins (handover) -> remove only when RENDERED opacity
+   is <= 0.004 (3000ms backstop for a backgrounded tab).
+   ========================================================================== */
+const CLEAR_MS = 430;
+const PAUSE_MS = 240;
+const LIFT_TIMEOUT_MS = 3000;
+
+function initVeil() {
+  const veil = document.getElementById("veil");
+  const content = document.getElementById("veil-content");
+  const fill = document.getElementById("veil-fill");
+  const name = document.getElementById("veil-name");
+  const meter = document.getElementById("veil-meter");
+  const meterFill = document.getElementById("veil-meter-fill");
+
+  const liftHandlers = [];
+  let isReady = false;
+
+  const api = {
+    /* called by the scene wiring when the hero can be seen (or has failed) */
+    ready() { run(); },
+    /* beginRise() of the scene, and anything else keyed to the lift */
+    onLift(fn) { liftHandlers.push(fn); },
+  };
+
+  if (!veil) { handover(); return api; }
+
+  const progress = new Spring({
+    value: 0, ...CFG.waiting,
+    onUpdate: (v) => {
+      const p = clamp01(v);
+      fill.style.transform = \`scaleY(\${p})\`;
+      meterFill.style.transform = \`scaleX(\${p})\`;
+    },
+  });
+  progress.to(0.7);
+
+  const nameSpring = new Spring({
+    value: 0, ...CFG.label,
+    onUpdate: (v) => {
+      name.style.opacity = String(clamp01(v));
+      name.style.transform = \`translateY(\${(0.6 * (1 - v)).toFixed(4)}rem)\`;
+    },
+  });
+  nameSpring.to(1, 260);
+
+  const clear = new Spring({
+    value: 1, ...CFG.clear,
+    onUpdate: (v) => {
+      const o = clamp01(v);
+      content.style.opacity = String(o);
+      content.style.transform = \`translateY(\${(-0.75 * (1 - v)).toFixed(4)}rem)\`;
+      meter.style.opacity = String(o);
+    },
+  });
+
+  const lift = new Spring({
+    value: 1, ...CFG.veil, precision: 0.001,
+    onUpdate: (v) => { veil.style.opacity = String(clamp01(v)); },
+  });
+
+  function remove() {
+    if (!veil.isConnected) return;
+    veil.remove();
+  }
+
+  function run() {
+    if (isReady) return;
+    isReady = true;
+
+    veil.style.pointerEvents = "none";   /* from ready: none */
+    progress.set(Math.max(progress.value, 0.7));
+    progress.tension = CFG.ready.tension;
+    progress.friction = CFG.ready.friction;
+    progress.to(1);
+    clear.to(0);
+
+    window.setTimeout(() => {
+      /* beat 3: the veil lifts AND the page's entrance begins, same tick */
+      lift.to(0);
+      liftHandlers.forEach((fn) => { try { fn(); } catch (e) { console.error(e); } });
+      handover();
+
+      /* remove only when the RENDERED opacity has gone */
+      const t0 = performance.now();
+      let un = null;
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        if (un) un();
+        window.clearTimeout(backstop);
+        remove();
+      };
+      const backstop = window.setTimeout(finish, LIFT_TIMEOUT_MS);
+      un = subscribe(() => {
+        const o = parseFloat(getComputedStyle(veil).opacity);
+        if (o <= 0.004 || performance.now() - t0 > LIFT_TIMEOUT_MS) finish();
+      });
+    }, CLEAR_MS + PAUSE_MS);
+  }
+
+  return api;
+}
+
+/* ==========================================================================
+   THE BURGER SHEET (below xl)
+   Appended to <body> (never inside the transformed masthead, or its fixed
+   position would be pinned to the header). role=dialog, aria-modal, focus to
+   the close button, Escape closes, closes itself if the viewport crosses 1280.
+   ========================================================================== */
+const MENU_LINKS = [
+  ["Driver", "/driver"], ["SEASON", "/season"], ["journal", "/journal"],
+  ["next race", "/next-race"], ["store", "/store"], ["Garage", "/garage"],
+];
+
+function initBurger() {
+  const burger = document.getElementById("burger");
+  if (!burger) return;
+
+  let sheet = null;
+  let sheetSpring = null;
+  let itemSprings = [];
+  let isOpen = false;
+  const wide = window.matchMedia("(min-width: 1280px)");
+
+  function build() {
+    const el = document.createElement("div");
+    el.className = "menu-sheet";
+    el.setAttribute("role", "dialog");
+    el.setAttribute("aria-modal", "true");
+    el.setAttribute("aria-label", "Menu");
+
+    const top = document.createElement("div");
+    top.className = "menu-sheet__top";
+
+    const logo = document.createElement("a");
+    logo.className = "menu-sheet__logo";
+    logo.href = "/";
+    logo.setAttribute("aria-label", "Grido1 Racing Systems");
+    const logoImg = document.createElement("img");
+    logoImg.alt = "";
+    logoImg.width = 424; logoImg.height = 97;
+    logoImg.dataset.asset = "hero/ui/grido1-logo.webp";
+    logo.appendChild(logoImg);
+    logo.addEventListener("click", close);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "menu-sheet__close";
+    closeBtn.setAttribute("aria-label", "Close menu");
+    closeBtn.innerHTML = "<i></i><i></i>";
+    closeBtn.addEventListener("click", close);
+
+    top.append(logo, closeBtn);
+
+    const nav = document.createElement("nav");
+    nav.className = "menu-sheet__nav";
+    nav.setAttribute("aria-label", "Primary");
+    const items = MENU_LINKS.map(([label, href]) => {
+      const a = document.createElement("a");
+      a.className = "menu-sheet__link";
+      a.href = href;
+      a.textContent = label;
+      a.addEventListener("click", close);
+      nav.appendChild(a);
+      return a;
+    });
+
+    el.append(top, nav);
+    document.body.appendChild(el);
+    loadAssets(el);
+    return { el, items, closeBtn };
+  }
+
+  function onKey(e) {
+    if (e.key === "Escape") { e.preventDefault(); close(); return; }
+    /* keep Tab inside the dialog */
+    if (e.key === "Tab" && sheet) {
+      const f = sheet.el.querySelectorAll("a, button");
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+    }
+  }
+
+  function open() {
+    if (isOpen || wide.matches) return;
+    isOpen = true;
+    burger.setAttribute("aria-expanded", "true");
+    lockScroll();
+
+    sheet = build();
+    sheetSpring = new Spring({
+      value: 0, ...CFG.sheet,
+      onUpdate: (v) => { sheet.el.style.opacity = String(clamp01(v)); },
+    });
+    sheetSpring.to(1);
+
+    itemSprings = sheet.items.map((a, i) => {
+      const s = new Spring({
+        value: 0, ...CFG.item,
+        onUpdate: (v) => {
+          a.style.opacity = String(clamp01(v));
+          a.style.transform = \`translateY(\${(0.75 * (1 - v)).toFixed(4)}rem)\`;
+        },
+      });
+      s.to(1, 120 + i * 55);
+      return s;
+    });
+
+    document.addEventListener("keydown", onKey);
+    sheet.closeBtn.focus();
+  }
+
+  function close() {
+    if (!isOpen) return;
+    isOpen = false;
+    burger.setAttribute("aria-expanded", "false");
+    document.removeEventListener("keydown", onKey);
+
+    const current = sheet;
+    itemSprings.forEach((s) => s.to(0));
+    sheetSpring.onRest = () => {
+      if (current && current.el.isConnected) current.el.remove();
+      if (sheet === current) sheet = null;
+    };
+    sheetSpring.to(0);
+    unlockScroll();
+    burger.focus({ preventScroll: true });
+  }
+
+  burger.addEventListener("click", () => (isOpen ? close() : open()));
+
+  /* crossing 1280 closes it automatically */
+  const onWide = () => { if (wide.matches && isOpen) close(); };
+  if (wide.addEventListener) wide.addEventListener("change", onWide);
+  else wide.addListener(onWide);
+}
+
+/* ===== PART 5 ENDS HERE. Parts 6 to 10 continue inside this same script. ===== */
