@@ -1,0 +1,682 @@
+/* ==========================================================================
+   HERO SCENE, PART B: the class
+   ========================================================================== */
+class HeroScene {
+  constructor(canvas) {
+    this.scene = new Scene();
+    this.camera = new PerspectiveCamera(CAMERA_FOV, 1, 0.1, 50);
+    this.headMaterial = null;
+    this.headMesh = null;
+    this.shellMaterial = null;
+    this.helmetTextures = [];
+    this.revealUniforms = null;
+    this.outlineMaterial = null;
+    this.outlineMesh = null;
+    this.helmetGroup = new Group();
+    this.helmetPivot = new Group();
+    this.subjectGroup = new Group();
+    this.backdropMesh = null;
+    this.backdropMaterial = null;
+    this.params = { ...DEFAULT_PARAMS };
+    this.pointer = { x: 0, y: 0 };
+    this.smoothed = { x: 0, y: 0 };
+    this.lastSmoothed = { x: 0, y: 0 };
+    this.pointerSeen = false;
+    this.tilt = 0;
+    this.yaw = 0;
+    this.pace = 0;
+    this.readyAt = null;
+    this.intro = 0;
+    this.viewportHeight = 1;
+    this.viewportWidth = 1;
+    this.riseStarted = false;
+    this.riseAt = null;
+    this.sweepPointer = { x: AUTO_SWEEP_PATH[0].x, y: AUTO_SWEEP_PATH[0].y };
+    this.sweepSmoothed = { ...this.sweepPointer };
+    this.sweepLast = { ...this.sweepPointer };
+    this.sweepPace = 0;
+    this.sweepCycle = 0;
+    this.aspect = 1;
+    this.reveal = 0;
+    this.settled = false;
+    this.disposed = false;
+    this.startTime = null;
+    this.ready = false;
+    this.onReady = null;
+    this.onError = null;
+
+    this._tier = getSceneTier();
+    this.samples = this._tier.trailSamples;
+    this.trail = Array.from({ length: this.samples }, () => new Vector2(STATIC_POSE.x, -STATIC_POSE.y));
+    this.sweepTrail = Array.from({ length: this.samples }, () => new Vector2(AUTO_SWEEP_PATH[0].x, -AUTO_SWEEP_PATH[0].y));
+
+    this.renderer = new WebGLRenderer({
+      canvas,
+      alpha: false,
+      antialias: this._tier.antialias,
+      stencil: false,
+      powerPreference: this._tier.mobile ? "default" : "high-performance",
+    });
+    this.renderer.setClearColor(new Color(getComputedStyle(document.body).backgroundColor));
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this._tier.maxDpr));
+    this.renderer.toneMapping = ACESFilmicToneMapping;
+
+    if (!this._tier.pointerEnabled) this.parkPointer();
+
+    this.camera.position.set(0, CAMERA_Y, 6.5);
+    this.helmetGroup.add(this.helmetPivot);
+    this.subjectGroup.add(this.helmetGroup);
+    this.scene.add(this.subjectGroup);
+
+    this.load().catch((err) => {
+      console.error(err);
+      if (this.onError) this.onError(err);
+    });
+  }
+
+  get tier() { return this._tier; }
+
+  /* Re-reads the tier. antialias and trailSamples stay as built (GL context / shader source). */
+  retune() {
+    const fresh = getSceneTier();
+    const previous = this._tier;
+    const tier = { ...fresh, antialias: previous.antialias, trailSamples: previous.trailSamples };
+    this._tier = tier;
+
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, tier.maxDpr));
+    if (this.outlineMesh) this.outlineMesh.visible = tier.outline;
+
+    if (!tier.pointerEnabled) this.parkPointer();
+    else if (!previous.pointerEnabled) this.pointerSeen = false;
+
+    if (!tier.freeze) this.settled = false;
+    return tier;
+  }
+
+  parkPointer() {
+    this.pointer = { ...STATIC_POSE };
+    this.smoothed = { ...STATIC_POSE };
+    this.lastSmoothed = { ...STATIC_POSE };
+    this.tilt = this.pitchFor(STATIC_POSE.y);
+    this.yaw = this.yawFor(STATIC_POSE.x);
+    this.pointerSeen = false;
+  }
+
+  /* called the moment the loading veil starts to lift */
+  beginRise() { this.riseStarted = true; }
+
+  setPointer(x, y) {
+    this.pointer.x = x;
+    this.pointer.y = y;
+    /* the first event is a discovery, not a movement: snap the whole chain */
+    if (!this.pointerSeen) {
+      this.pointerSeen = true;
+      this.smoothed.x = x;
+      this.smoothed.y = y;
+      this.lastSmoothed.x = x;
+      this.lastSmoothed.y = y;
+      this.tilt = this.pitchFor(y);
+      this.yaw = this.yawFor(x);
+    }
+  }
+
+  pitchFor(y) { return swing(y, this.params.helmetAmpX, this.params.helmetCurveX); }
+  yawFor(x) { return swing(x, this.params.helmetAmpY, this.params.helmetCurveY); }
+
+  setParams(partial) {
+    Object.assign(this.params, partial);
+    this.settled = false;
+  }
+
+  resize(width, height) {
+    this.renderer.setSize(width, height, false);
+    this.viewportHeight = Math.max(height, 1);
+    this.viewportWidth = Math.max(width, 1);
+    this.aspect = width / height;
+    this.camera.aspect = this.aspect;
+    this.camera.updateProjectionMatrix();
+    if (this.revealUniforms) this.revealUniforms.uAspect.value = this.aspect;
+    this.settled = false;
+  }
+
+  update(time) {
+    if (this.disposed || this.settled) return;
+    if (this.startTime === null) this.startTime = time;
+    const t = (time - this.startTime) / 1000;
+    const p = this.params;
+
+    /* frozen tiers: play the entrance, render the settled frame, stop drawing */
+    if (this._tier.freeze && this.reveal > 0.995 && this.intro >= 1) this.settled = true;
+
+    /* idle sweep: a second cursor that never stops */
+    const autoEnabled = p.autoSweepAmount > 0 && !this._tier.freeze && this.intro >= 1;
+    if (autoEnabled) {
+      const cycle = t % Math.max(p.autoSweepPeriod, 0.001);
+      if (cycle < this.sweepCycle) this.resetSweep();
+      this.sweepCycle = cycle;
+
+      const legs = AUTO_SWEEP_PATH.length - 1;
+      const stroke = Math.max(p.autoSweepStroke, 0.05);
+      const slot = stroke + Math.max(p.autoSweepHold, 0);
+      const leg = Math.floor(cycle / slot);
+
+      if (leg < legs) {
+        const local = Math.min(1, (cycle - leg * slot) / stroke);
+        const eased = 1 - (1 - local) * (1 - local);
+        const from = AUTO_SWEEP_PATH[leg];
+        const to = AUTO_SWEEP_PATH[leg + 1];
+        this.sweepPointer.x = (from.x + (to.x - from.x) * eased) * p.autoSweepAmount;
+        this.sweepPointer.y = (from.y + (to.y - from.y) * eased) * p.autoSweepAmount;
+      }
+    }
+
+    this.sweepSmoothed.x += (this.sweepPointer.x - this.sweepSmoothed.x) * p.pointerLerp;
+    this.sweepSmoothed.y += (this.sweepPointer.y - this.sweepSmoothed.y) * p.pointerLerp;
+
+    const sweepStep = Math.hypot(this.sweepSmoothed.x - this.sweepLast.x, this.sweepSmoothed.y - this.sweepLast.y);
+    const sweepTarget = autoEnabled ? Math.min(1, sweepStep / Math.max(p.pacePeak, 1e-5)) : 0;
+    this.sweepPace += (sweepTarget - this.sweepPace) * (sweepTarget > this.sweepPace ? p.paceAttack : p.paceRelease);
+    this.sweepLast.x = this.sweepSmoothed.x;
+    this.sweepLast.y = this.sweepSmoothed.y;
+
+    const oldestSweep = this.sweepTrail.pop();
+    if (oldestSweep) {
+      oldestSweep.set(this.sweepSmoothed.x, -this.sweepSmoothed.y);
+      this.sweepTrail.unshift(oldestSweep);
+    }
+
+    this.smoothed.x += (this.pointer.x - this.smoothed.x) * p.pointerLerp;
+    this.smoothed.y += (this.pointer.y - this.smoothed.y) * p.pointerLerp;
+
+    /* entrance clock starts at `ready` */
+    if (this.ready) {
+      if (this.readyAt === null) this.readyAt = t;
+      this.intro = Math.min(1, (t - this.readyAt) / Math.max(p.introDuration, 0.001));
+      if (this._tier.freeze) this.intro = 1;
+    }
+
+    this.camera.position.z = p.cameraZ;
+
+    this.subjectGroup.scale.setScalar(p.subjectScale * this.narrowFit());
+    this.subjectGroup.position.x =
+      p.subjectX +
+      (this.viewportWidth < STEP_UNDER && this.aspect >= 1.2 ? NARROW_STEP : 0) +
+      this.smoothed.x * p.subjectParallax;
+    this.subjectGroup.position.y =
+      p.subjectY - this.smoothed.y * p.subjectParallax - this.riseOffset(t, p);
+
+    if (this.headMaterial) {
+      this.headMaterial.uniforms.uParallax.value.set(this.smoothed.x, -this.smoothed.y);
+      this.headMaterial.uniforms.uReveal.value = this.reveal;
+      this.headMaterial.uniforms.uDepthScale.value = p.headParallax;
+      this.headMaterial.uniforms.uRelight.value = p.headRelight;
+    }
+    if (this.headMesh) {
+      this.headMesh.scale.setScalar(p.headScale);
+      this.headMesh.position.y = -0.55 + p.headY - (HEAD_HEIGHT * HEAD_EXTEND * p.headScale) / 2;
+    }
+
+    /* helmet turns about its own centre, through a second filter */
+    this.tilt += (this.pitchFor(this.smoothed.y) - this.tilt) * p.pointerLerp;
+    this.yaw += (this.yawFor(this.smoothed.x) - this.yaw) * p.pointerLerp;
+    this.helmetPivot.rotation.x = this.tilt;
+    this.helmetPivot.rotation.y = this.yaw;
+    this.helmetGroup.position.x = p.helmetX + this.smoothed.x * p.helmetFollow;
+    this.helmetGroup.position.y = p.helmetY - this.smoothed.y * p.helmetFollow * 0.8;
+    this.helmetGroup.position.z = p.helmetZ;
+    this.helmetGroup.scale.setScalar(p.helmetScale);
+
+    /* pointer speed, eased: rises quickly, falls slowly */
+    const step = Math.hypot(this.smoothed.x - this.lastSmoothed.x, this.smoothed.y - this.lastSmoothed.y);
+    if (this._tier.pointerEnabled) {
+      const target = Math.min(1, step / Math.max(p.pacePeak, 1e-5));
+      this.pace += (target - this.pace) * (target > this.pace ? p.paceAttack : p.paceRelease);
+    } else if (!autoEnabled && this.intro >= 1 && this._tier.reveal) {
+      this.pace = 1;
+    }
+    this.lastSmoothed.x = this.smoothed.x;
+    this.lastSmoothed.y = this.smoothed.y;
+
+    const oldest = this.trail.pop();
+    if (oldest) {
+      oldest.set(this.smoothed.x, -this.smoothed.y);
+      this.trail.unshift(oldest);
+    }
+
+    if (this.revealUniforms) {
+      const u = this.revealUniforms;
+      u.uAspect.value = this.aspect;
+      u.uRadius.value = p.trailRadius;
+      u.uIdleScale.value = p.trailIdleScale;
+      u.uTaper.value = p.trailTaper;
+      u.uTaperIdle.value = p.trailTaperIdle;
+      u.uTaperFast.value = p.trailTaperFast;
+      u.uLength.value = p.trailLength;
+      u.uPace.value = this.pace;
+      u.uGateStart.value = p.paceThreshold;
+      u.uGateWidth.value = p.paceRamp;
+      u.uWarpScale.value = p.revealWarpScale;
+      u.uTime.value = t * p.revealSpeed;
+      u.uRevealMix.value = this.reveal;
+      u.uThreshold.value = p.revealThreshold;
+      u.uEdge.value = p.revealEdge;
+      u.uWarp.value = p.revealWarp;
+      u.uIntro.value = this.intro;
+      u.uBurnStart.value = p.burnStart;
+      u.uBurnSoft.value = p.burnSoftness;
+      u.uBurnGlow.value = p.burnGlow;
+
+      u.uSweepPace.value = this.sweepPace;
+      u.uSweepWarp.value = p.sweepWarp;
+      u.uSweepLength.value = p.sweepLength;
+      u.uSweepRadius.value = p.sweepRadius;
+
+      this.writeTrailBounds(this.trail, p.trailLength, p.revealWarp, p.trailRadius, u.uTrailMin.value, u.uTrailMax.value);
+      this.writeTrailBounds(this.sweepTrail, p.sweepLength, p.sweepWarp, p.sweepRadius, u.uSweepMin.value, u.uSweepMax.value);
+    }
+
+    if (this.backdropMesh && this.backdropMaterial) {
+      const distance = this.camera.position.z - BACKDROP_Z;
+      const height = 2 * distance * Math.tan((this.camera.fov * Math.PI) / 360) * 1.06;
+      this.backdropMesh.scale.set(height * this.aspect, height, 1);
+
+      const bg = this.backdropMaterial.uniforms;
+      bg.uLineScale.value = p.bgLineScale;
+      bg.uLineCount.value = p.bgLineCount;
+      bg.uLineThickness.value = p.bgLineThickness;
+      bg.uLineOpacity.value = p.bgLineOpacity;
+      bg.uWaveAmount.value = p.bgWaveAmount;
+      bg.uWaveSpeed.value = p.bgWaveSpeed;
+      bg.uRevealOpacity.value = p.bgRevealOpacity;
+      bg.uRevealColor.value.setScalar(p.bgRevealLightness);
+      bg.uRevealColorAlt.value.setScalar(p.bgRevealLightnessAlt);
+    }
+
+    if (this.outlineMaterial) {
+      const o = this.outlineMaterial.uniforms;
+      o.uTime.value = t;
+      o.uPeriod.value = p.outlinePeriod;
+      o.uStagger.value = p.outlineStagger;
+      o.uOpacity.value = p.outlineOpacity;
+      o.uWidth.value = p.outlineWidth;
+      o.uLightness.value = p.outlineLightness;
+      o.uBase.value = p.outlineBase;
+      /* faded in on the burn's own curve: shell and outline never coexist */
+      o.uRevealMix.value = this.reveal * this.burnProgress(p);
+    }
+
+    if (this.shellMaterial) this.shellMaterial.color.setScalar(p.helmetBrightness);
+
+    this.renderer.render(this.scene, this.camera);
+  }
+
+  /* world-space drop still to travel; riseDistance is in CSS pixels */
+  riseOffset(t, p) {
+    if (this._tier.freeze || p.riseDistance === 0) return 0;
+    let remaining = 1;
+    if (this.riseStarted) {
+      if (this.riseAt === null) this.riseAt = t;
+      const u = Math.min(1, (t - this.riseAt) / Math.max(p.riseDuration, 0.001));
+      remaining = 1 - (1 - (1 - u) * (1 - u));
+    }
+    if (remaining <= 0) return 0;
+    const visible = 2 * p.cameraZ * Math.tan((this.camera.fov * Math.PI) / 360);
+    return remaining * p.riseDistance * (visible / this.viewportHeight);
+  }
+
+  burnProgress(p) {
+    const span = Math.max(1 - p.burnStart, 1e-4);
+    const x = Math.min(1, Math.max(0, (this.intro - p.burnStart) / span));
+    return x * x * (3 - 2 * x);
+  }
+
+  resetSweep() {
+    const start = AUTO_SWEEP_PATH[0];
+    const amount = this.params.autoSweepAmount;
+    const x = start.x * amount;
+    const y = start.y * amount;
+    this.sweepPointer.x = x; this.sweepPointer.y = y;
+    this.sweepSmoothed.x = x; this.sweepSmoothed.y = y;
+    this.sweepLast.x = x; this.sweepLast.y = y;
+    this.sweepPace = 0;
+    for (const sample of this.sweepTrail) sample.set(x, -y);
+  }
+
+  /* landscape below 1440 only: the figure gives back a little */
+  narrowFit() {
+    if (this.viewportWidth >= PORT_WIDTH) return 1;
+    if (this.aspect < 1.2) return 1;
+    return Math.max(MIN_FIT, Math.min(1, this.aspect / REFERENCE_ASPECT));
+  }
+
+  writeTrailBounds(trail, length, warp, radius, min, max) {
+    const active = Math.min(trail.length, Math.ceil(length * (this.samples - 1)) + 1);
+    const margin = radius + warp * 0.22 + 0.05;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (let i = 0; i < active; i++) {
+      const sample = trail[i];
+      const x = sample.x * this.aspect;
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (sample.y < minY) minY = sample.y;
+      if (sample.y > maxY) maxY = sample.y;
+    }
+    min.set(minX - margin, minY - margin);
+    max.set(maxX + margin, maxY + margin);
+  }
+
+  dispose() {
+    this.disposed = true;
+    this.scene.traverse((object) => {
+      if (object.geometry) object.geometry.dispose();
+      const materials = Array.isArray(object.material) ? object.material : [object.material];
+      for (const material of materials) {
+        if (!material) continue;
+        for (const value of Object.values(material)) {
+          if (value instanceof Texture) value.dispose();
+        }
+        material.dispose();
+      }
+    });
+    this.renderer.dispose();
+  }
+
+  async load() {
+    const textureLoader = new TextureLoader();
+    const named = (url, promise) =>
+      promise.catch((err) => {
+        const e = new Error("Failed to load " + url);
+        e.url = url;
+        e.cause = err;
+        throw e;
+      });
+
+    const loadTexture = (file, srgb = false) =>
+      named(`${SCENE_ASSETS}/${file}`, new Promise((resolve, reject) => {
+        textureLoader.setCrossOrigin("anonymous");
+        textureLoader.load(`${SCENE_ASSETS}/${file}`, (texture) => {
+          if (srgb) texture.colorSpace = SRGBColorSpace;
+          texture.minFilter = LinearMipmapLinearFilter;
+          texture.generateMipmaps = true;
+          resolve(texture);
+        }, undefined, reject);
+      }));
+
+    const dracoLoader = new DRACOLoader();
+    dracoLoader.setDecoderPath(DRACO_PATH);
+    const gltfLoader = new GLTFLoader();
+    gltfLoader.setCrossOrigin("anonymous");
+    gltfLoader.setDRACOLoader(dracoLoader);
+
+    const rgbe = new RGBELoader();
+    rgbe.setCrossOrigin("anonymous");
+
+    const [env, headMaps, helmetGltf, noise] = await Promise.all([
+      named(`${SCENE_ASSETS}/studio-light.hdr`, rgbe.loadAsync(`${SCENE_ASSETS}/studio-light.hdr`)),
+      Promise.all([
+        loadTexture("person-diffuse.webp", true),
+        loadTexture("person-depth.webp"),
+        loadTexture("person-alpha.webp"),
+        loadTexture("person-normal.webp"),
+      ]),
+      named(`${SCENE_ASSETS}/helmet3.glb`, gltfLoader.loadAsync(`${SCENE_ASSETS}/helmet3.glb`)),
+      loadTexture("noise.webp"),
+    ]);
+    if (this.disposed) return;
+
+    const pmrem = new PMREMGenerator(this.renderer);
+    this.scene.environment = pmrem.fromEquirectangular(env).texture;
+    env.dispose();
+    pmrem.dispose();
+
+    /* order matters: buildHelmet creates the shared reveal uniforms the backdrop reads */
+    this.buildHead(headMaps[0], headMaps[1], headMaps[2], headMaps[3]);
+    this.buildHelmet(helmetGltf.scene, noise);
+    this.buildBackdrop(noise);
+
+    /* opaque from the first frame: the burn starts from a solid helmet */
+    this.reveal = 1;
+
+    /* prewarm: upload every texture, compile every program, one throwaway frame */
+    for (const texture of [...headMaps, noise, ...this.helmetTextures]) {
+      this.renderer.initTexture(texture);
+    }
+    await this.renderer.compileAsync(this.scene, this.camera);
+    if (this.disposed) return;
+    this.renderer.render(this.scene, this.camera);
+
+    this.ready = true;
+    if (this.onReady) this.onReady();
+  }
+
+  buildHead(diffuse, depth, alpha, normal) {
+    this.headMaterial = new ShaderMaterial({
+      vertexShader: headVertex,
+      fragmentShader: headFragment,
+      uniforms: {
+        uDiffuse: { value: diffuse },
+        uDepth: { value: depth },
+        uAlpha: { value: alpha },
+        uNormal: { value: normal },
+        uParallax: { value: new Vector2() },
+        uReveal: { value: 0 },
+        uDepthScale: { value: DEFAULT_PARAMS.headParallax },
+        uRelight: { value: DEFAULT_PARAMS.headRelight },
+        uExtend: { value: HEAD_EXTEND },
+      },
+      transparent: true,
+    });
+    const geometry = new PlaneGeometry(HEAD_HEIGHT, HEAD_HEIGHT * (1 + HEAD_EXTEND));
+    const head = new Mesh(geometry, this.headMaterial);
+    head.position.set(0, -0.55, 0);
+    this.headMesh = head;
+    this.subjectGroup.add(head);
+  }
+
+  buildHelmet(root, noise) {
+    noise.wrapS = RepeatWrapping;
+    noise.wrapT = RepeatWrapping;
+
+    this.revealUniforms = {
+      uTrail: { value: this.trail },
+      uTrailMin: { value: new Vector2(-1e3, -1e3) },
+      uTrailMax: { value: new Vector2(1e3, 1e3) },
+      uSweep: { value: this.sweepTrail },
+      uSweepMin: { value: new Vector2(-1e3, -1e3) },
+      uSweepMax: { value: new Vector2(1e3, 1e3) },
+      uSweepPace: { value: 0 },
+      uSweepWarp: { value: DEFAULT_PARAMS.sweepWarp },
+      uSweepLength: { value: DEFAULT_PARAMS.sweepLength },
+      uSweepRadius: { value: DEFAULT_PARAMS.sweepRadius },
+      uAspect: { value: this.aspect },
+      uRadius: { value: DEFAULT_PARAMS.trailRadius },
+      uIdleScale: { value: DEFAULT_PARAMS.trailIdleScale },
+      uTaper: { value: DEFAULT_PARAMS.trailTaper },
+      uTaperIdle: { value: DEFAULT_PARAMS.trailTaperIdle },
+      uTaperFast: { value: DEFAULT_PARAMS.trailTaperFast },
+      uLength: { value: DEFAULT_PARAMS.trailLength },
+      uPace: { value: 0 },
+      uGateStart: { value: DEFAULT_PARAMS.paceThreshold },
+      uGateWidth: { value: DEFAULT_PARAMS.paceRamp },
+      uWarpScale: { value: DEFAULT_PARAMS.revealWarpScale },
+      uTime: { value: 0 },
+      uThreshold: { value: DEFAULT_PARAMS.revealThreshold },
+      uEdge: { value: DEFAULT_PARAMS.revealEdge },
+      uWarp: { value: DEFAULT_PARAMS.revealWarp },
+      uRevealMix: { value: 0 },
+      uNoiseTex: { value: noise },
+      uIntro: { value: 0 },
+      uBurnStart: { value: DEFAULT_PARAMS.burnStart },
+      uBurnSoft: { value: DEFAULT_PARAMS.burnSoftness },
+      uBurnGlow: { value: DEFAULT_PARAMS.burnGlow },
+      uBurnColor: { value: new Color(readToken("--accent")) },
+    };
+
+    root.traverse((object) => {
+      if (!object.isMesh) return;
+      const mesh = object;
+      const shell = mesh.material;
+
+      /* FrontSide whatever the export says: double-sided + transparent + no depth write
+         shows the helmet's own back faces through itself */
+      shell.side = FrontSide;
+      shell.transparent = true;
+      shell.depthWrite = false;
+      shell.envMapIntensity = 1.3;
+
+      this.injectRevealMask(shell);
+      mesh.renderOrder = 1;
+      this.shellMaterial = shell;
+
+      for (const map of [shell.map, shell.normalMap, shell.roughnessMap, shell.metalnessMap]) {
+        if (map && !this.helmetTextures.includes(map)) this.helmetTextures.push(map);
+      }
+    });
+
+    /* normalise so the helmet is worn: sized to the head plane's face area */
+    const bounds = new Box3().setFromObject(root);
+    const size = bounds.getSize(new Vector3());
+    const scale = (HEAD_HEIGHT * 0.56) / size.y;
+    root.scale.setScalar(scale);
+    bounds.setFromObject(root);
+    const center = bounds.getCenter(new Vector3());
+    root.position.sub(center);
+    this.helmetPivot.position.copy(HELMET_WORN_OFFSET);
+
+    this.helmetPivot.add(root);
+    this.helmetGroup.updateMatrixWorld(true);
+    this.buildOutline(root);
+  }
+
+  /* the scanning wireframe: one merged mesh, parented to the pivot so it inherits the tilt */
+  buildOutline(root) {
+    const toGroupLocal = this.helmetPivot.matrixWorld.clone().invert();
+
+    const geometries = [];
+    root.traverse((object) => {
+      if (!object.isMesh || !object.visible || !object.geometry) return;
+      const geometry = object.geometry.clone();
+      geometry.applyMatrix4(new Matrix4().multiplyMatrices(toGroupLocal, object.matrixWorld));
+      for (const name of Object.keys(geometry.attributes)) {
+        if (name !== "position") geometry.deleteAttribute(name);
+      }
+      /* mergeGeometries needs all-indexed or all-non-indexed */
+      geometries.push(geometry.index ? geometry.toNonIndexed() : geometry);
+    });
+    if (!geometries.length) return;
+
+    const merged = mergeGeometries(geometries, false);
+    for (const geometry of geometries) geometry.dispose();
+    if (!merged) return;
+
+    merged.computeBoundingBox();
+    const bb = merged.boundingBox;
+    const minY = bb ? bb.min.y : 0;
+    const rangeY = bb ? bb.max.y - bb.min.y : 1;
+
+    this.outlineMaterial = new ShaderMaterial({
+      vertexShader: outlineVertex,
+      fragmentShader: outlineFragment,
+      wireframe: true,
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        uTime: { value: 0 },
+        uPeriod: { value: DEFAULT_PARAMS.outlinePeriod },
+        uStagger: { value: DEFAULT_PARAMS.outlineStagger },
+        uOpacity: { value: DEFAULT_PARAMS.outlineOpacity },
+        uWidth: { value: DEFAULT_PARAMS.outlineWidth },
+        uLightness: { value: DEFAULT_PARAMS.outlineLightness },
+        uBase: { value: DEFAULT_PARAMS.outlineBase },
+        uRevealMix: { value: 0 },
+        uColor: { value: new Color(readToken("--foreground")) },
+        uMinY: { value: minY },
+        uRangeY: { value: rangeY },
+      },
+    });
+
+    const outline = new Mesh(merged, this.outlineMaterial);
+    outline.renderOrder = 3;
+    outline.visible = this._tier.outline;
+    this.outlineMesh = outline;
+    this.helmetPivot.add(outline);
+  }
+
+  /* injects the liquid reveal + entrance burn into the shell's alpha via onBeforeCompile */
+  injectRevealMask(material) {
+    const uniforms = this.revealUniforms;
+    if (!uniforms) return;
+    const samples = this.samples;
+
+    material.onBeforeCompile = (shader) => {
+      Object.assign(shader.uniforms, uniforms);
+      shader.vertexShader = shader.vertexShader
+        .replace("#include <common>", "#include <common>\\nvarying vec4 vRevealClip;")
+        .replace("#include <project_vertex>", "#include <project_vertex>\\nvRevealClip = gl_Position;");
+      shader.fragmentShader = shader.fragmentShader
+        .replace(
+          "#include <common>",
+          `#include <common>
+           varying vec4 vRevealClip;
+           uniform float uIntro;
+           uniform float uBurnStart;
+           uniform float uBurnSoft;
+           uniform float uBurnGlow;
+           uniform vec3 uBurnColor;
+           ${buildRevealDeclarations(samples)}`
+        )
+        .replace(
+          "#include <alphamap_fragment>",
+          `#include <alphamap_fragment>
+           vec2 revealNdc = vRevealClip.xy / vRevealClip.w;
+
+           float burnFront = smoothstep(uBurnStart, 1.0, uIntro);
+           float burnNoise = texture2D(uNoiseTex, revealNdc * 0.5 + 0.5).r;
+           float burnHeight = 1.0 - (revealNdc.y * 0.5 + 0.5);
+           float burnAt = mix(burnHeight, burnNoise, 0.45);
+           float intact = smoothstep(burnFront - uBurnSoft, burnFront + uBurnSoft, burnAt);
+
+           float mask = max(revealTrail(revealNdc), intact);
+           diffuseColor.a *= mask * uRevealMix;
+
+           float burnEdge = 4.0 * intact * (1.0 - intact);
+           diffuseColor.rgb += uBurnColor * burnEdge * uBurnGlow * uRevealMix;`
+        );
+    };
+  }
+
+  /* the backdrop: contour lines + the grey half of the cursor reveal */
+  buildBackdrop(noise) {
+    const uniforms = this.revealUniforms;
+    if (!uniforms) return;
+
+    this.backdropMaterial = new ShaderMaterial({
+      vertexShader: backdropVertex,
+      fragmentShader: buildBackdropFragment(this.samples),
+      depthWrite: false,
+      uniforms: {
+        ...uniforms,
+        uNoiseTex: { value: noise },
+        uBackground: { value: new Color(readToken("--background")) },
+        uLineColor: { value: new Color(readToken("--surface-soft")) },
+        uRevealColor: { value: new Color().setScalar(DEFAULT_PARAMS.bgRevealLightness) },
+        uRevealColorAlt: { value: new Color().setScalar(DEFAULT_PARAMS.bgRevealLightnessAlt) },
+        uLineScale: { value: DEFAULT_PARAMS.bgLineScale },
+        uLineCount: { value: DEFAULT_PARAMS.bgLineCount },
+        uLineThickness: { value: DEFAULT_PARAMS.bgLineThickness },
+        uLineOpacity: { value: DEFAULT_PARAMS.bgLineOpacity },
+        uWaveAmount: { value: DEFAULT_PARAMS.bgWaveAmount },
+        uWaveSpeed: { value: DEFAULT_PARAMS.bgWaveSpeed },
+        uRevealOpacity: { value: DEFAULT_PARAMS.bgRevealOpacity },
+      },
+    });
+
+    const backdrop = new Mesh(new PlaneGeometry(1, 1), this.backdropMaterial);
+    backdrop.position.z = BACKDROP_Z;
+    backdrop.renderOrder = -1;
+    this.backdropMesh = backdrop;
+    this.scene.add(backdrop);
+  }
+}
+
+/* ===== PART 7 ENDS HERE. Parts 8 to 10 continue inside this same script. ===== */
