@@ -18,7 +18,7 @@ history.scrollRestoration = "manual";
 window.scrollTo(0, 0);
 
 const ASSET_BASE_URL = "https://storage.getlayers.ai/assets/kimi-04a9449ab2";
-const asset = (path) => \`${ASSET_BASE_URL}/${path}\`;
+const asset = (path) => `${ASSET_BASE_URL}/${path}`;
 const REDUCED = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const COARSE = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
 const clamp01 = (v) => Math.min(1, Math.max(0, v));
@@ -268,8 +268,8 @@ function interp(from, to, p) {
   const a = parseVal(from), b = parseVal(to);
   if (a.kind === "num") return a.n + (b.n - a.n) * p;
   const n = a.n + (b.n - a.n) * p;
-  if (a.kind === "unit") return \`${n}${a.u || b.u}\`;
-  if (a.kind === "fn") return \`${a.f}(${n}${a.u || b.u})\`;
+  if (a.kind === "unit") return `${n}${a.u || b.u}`;
+  if (a.kind === "fn") return `${a.f}(${n}${a.u || b.u})`;
   return p >= 1 ? to : from;
 }
 
@@ -374,7 +374,7 @@ function buildText(el) {
     ...cfg, precision: 0.001,
     onUpdate: (t) => {
       u.style.opacity = String(clamp01(t));
-      u.style.transform = \`translateY(${(dist * (1 - t)).toFixed(4)}em)\`;
+      u.style.transform = `translateY(${(dist * (1 - t)).toFixed(4)}em)`;
     },
   }));
 
@@ -398,7 +398,7 @@ function buildRise(el) {
     ...cfg, precision: 0.001,
     onUpdate: (t) => {
       el.style.opacity = String(clamp01(t));
-      el.style.transform = scaleX ? \`scaleX(${Math.max(0, t)})\` : \`translateY(${n * (1 - t)}${u})\`;
+      el.style.transform = scaleX ? `scaleX(${Math.max(0, t)})` : `translateY(${n * (1 - t)}${u})`;
     },
     onRest: (v) => {
       /* a settled transform would make the node a containing block; drop it */
@@ -444,9 +444,9 @@ function initStack() {
     const shrink = phone.matches ? 0 : 1 - RECEDE_SCALE;
     for (const { inner, shade, next } of pinned) {
       const p = Math.min(1, Math.max(0, 1 - next.getBoundingClientRect().top / view));
-      inner.style.transform = p > 0 && shrink > 0 ? \`scale(${1 - shrink * p})\` : "";
+      inner.style.transform = p > 0 && shrink > 0 ? `scale(${1 - shrink * p})` : "";
       inner.style.willChange = p > 0 && shrink > 0 ? "transform" : "";
-      shade.style.opacity = \`${RECEDE_SHADE * p}\`;
+      shade.style.opacity = `${RECEDE_SHADE * p}`;
       inner.style.visibility = p >= 1 ? "hidden" : "visible";
     }
   };
