@@ -17,11 +17,11 @@ function loadAssets(root = document) {
 
 function setMaskAssets() {
   document.documentElement.style.setProperty(
-    "--img-helmet-mask", \`url("\${asset("hero/ui/helmet-mask.png")}")\`
+    "--img-helmet-mask", `url("${asset("hero/ui/helmet-mask.png")}")`
   );
   const logo = document.querySelector(".foot__logo");
   if (logo) {
-    const u = \`url("\${asset("footer/logo-mask.png")}")\`;
+    const u = `url("${asset("footer/logo-mask.png")}")`;
     logo.style.webkitMaskImage = u;
     logo.style.maskImage = u;
   }
@@ -70,8 +70,8 @@ function initVeil() {
     value: 0, ...CFG.waiting,
     onUpdate: (v) => {
       const p = clamp01(v);
-      fill.style.transform = \`scaleY(\${p})\`;
-      meterFill.style.transform = \`scaleX(\${p})\`;
+      fill.style.transform = `scaleY(${p})`;
+      meterFill.style.transform = `scaleX(${p})`;
     },
   });
   progress.to(0.7);
@@ -80,7 +80,7 @@ function initVeil() {
     value: 0, ...CFG.label,
     onUpdate: (v) => {
       name.style.opacity = String(clamp01(v));
-      name.style.transform = \`translateY(\${(0.6 * (1 - v)).toFixed(4)}rem)\`;
+      name.style.transform = `translateY(${(0.6 * (1 - v)).toFixed(4)}rem)`;
     },
   });
   nameSpring.to(1, 260);
@@ -90,7 +90,7 @@ function initVeil() {
     onUpdate: (v) => {
       const o = clamp01(v);
       content.style.opacity = String(o);
-      content.style.transform = \`translateY(\${(-0.75 * (1 - v)).toFixed(4)}rem)\`;
+      content.style.transform = `translateY(${(-0.75 * (1 - v)).toFixed(4)}rem)`;
       meter.style.opacity = String(o);
     },
   });
@@ -244,7 +244,7 @@ function initBurger() {
         value: 0, ...CFG.item,
         onUpdate: (v) => {
           a.style.opacity = String(clamp01(v));
-          a.style.transform = \`translateY(\${(0.75 * (1 - v)).toFixed(4)}rem)\`;
+          a.style.transform = `translateY(${(0.75 * (1 - v)).toFixed(4)}rem)`;
         },
       });
       s.to(1, 120 + i * 55);
