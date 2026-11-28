@@ -1,0 +1,628 @@
+/* ==========================================================================
+   SEASON, PART D
+   ========================================================================== */
+const SVGNS = "http://www.w3.org/2000/svg";
+const S = (tag, attrs = {}, parent) => {
+  const n = document.createElementNS(SVGNS, tag);
+  for (const k in attrs) n.setAttribute(k, attrs[k]);
+  if (parent) parent.appendChild(n);
+  return n;
+};
+
+/* ---------- palette (tokens resolved through computed colour) ---------- */
+const parseRgb = (s) => {
+  const m = s.match(/[\d.]+/g) || [0, 0, 0];
+  return [Math.round(+m[0]), Math.round(+m[1]), Math.round(+m[2])];
+};
+const mixRgb = (a, b, t) => [
+  Math.round(a[0] + (b[0] - a[0]) * t),
+  Math.round(a[1] + (b[1] - a[1]) * t),
+  Math.round(a[2] + (b[2] - a[2]) * t),
+];
+const cssRgb = ([r, g, b]) => `rgb(${r} ${g} ${b})`;
+const rgba = ([r, g, b], alpha) => `rgb(${r} ${g} ${b} / ${alpha})`;
+
+/* ---------- lap timing: pacing lives in the path's curvature ---------- */
+const LAP_MS = 6000;
+const LINE_WIDTH = 5.9;
+const GLOW_WIDTH = 15;
+const HEAD_UNITS = 210;
+const COOL_MS = 800;
+const MARKER_POP_UNITS = 90;
+const CORNER_BRAKE = 9;
+const CUT_CENTRE = mapToArtboard(FLAG_CUT.x, FLAG_CUT.y);
+const CUT_SCALE = 1438.43 / 2560;
+const CUT_ALONG = FLAG_CUT.along * CUT_SCALE;
+const CUT_ACROSS = FLAG_CUT.across * CUT_SCALE;
+
+const CUMULATIVE = CIRCUIT_PATH.reduce((acc, point, index) => {
+  if (index === 0) return [0];
+  const prev = CIRCUIT_PATH[index - 1];
+  acc.push(acc[index - 1] + Math.hypot(point[0] - prev[0], point[1] - prev[1]));
+  return acc;
+}, []);
+/* NOT the rounded CIRCUIT_LENGTH: half a unit off reopens the seam */
+const TOTAL = CUMULATIVE[CUMULATIVE.length - 1];
+
+const TIME_AT = (() => {
+  const count = CIRCUIT_PATH.length;
+  const turn = new Array(count).fill(0);
+  for (let i = 1; i < count - 1; i += 1) {
+    const [ax, ay] = CIRCUIT_PATH[i - 1];
+    const [bx, by] = CIRCUIT_PATH[i];
+    const [cx, cy] = CIRCUIT_PATH[i + 1];
+    const ux = bx - ax, uy = by - ay, vx = cx - bx, vy = cy - by;
+    const lengths = (Math.hypot(ux, uy) || 1) * (Math.hypot(vx, vy) || 1);
+    turn[i] = Math.acos(Math.min(1, Math.max(-1, (ux * vx + uy * vy) / lengths)));
+  }
+  const win = 6;
+  const smoothed = turn.map((_, i) => {
+    let sum = 0, n = 0;
+    for (let j = Math.max(0, i - win); j <= Math.min(count - 1, i + win); j += 1) { sum += turn[j]; n += 1; }
+    return sum / n;
+  });
+  const accumulated = [0];
+  for (let i = 1; i < count; i += 1) {
+    const span = CUMULATIVE[i] - CUMULATIVE[i - 1];
+    const speed = 1 / (1 + CORNER_BRAKE * smoothed[i]);
+    accumulated.push(accumulated[i - 1] + span / speed);
+  }
+  const total = accumulated[count - 1] || 1;
+  return accumulated.map((v) => v / total);
+})();
+
+const distanceAtTime = (time) => {
+  if (time <= 0) return 0;
+  if (time >= 1) return TOTAL;
+  let low = 0, high = TIME_AT.length - 1;
+  while (low < high - 1) {
+    const mid = (low + high) >> 1;
+    if (TIME_AT[mid] <= time) low = mid; else high = mid;
+  }
+  const span = TIME_AT[high] - TIME_AT[low] || 1;
+  const ratio = (time - TIME_AT[low]) / span;
+  return CUMULATIVE[low] + (CUMULATIVE[high] - CUMULATIVE[low]) * ratio;
+};
+
+const trailUpTo = (distance) => {
+  const out = [];
+  for (let i = 0; i < CIRCUIT_PATH.length; i += 1) {
+    if (CUMULATIVE[i] <= distance) { out.push(CIRCUIT_PATH[i]); continue; }
+    const a = CIRCUIT_PATH[i - 1], b = CIRCUIT_PATH[i];
+    const ratio = (distance - CUMULATIVE[i - 1]) / (CUMULATIVE[i] - CUMULATIVE[i - 1]);
+    out.push([a[0] + (b[0] - a[0]) * ratio, a[1] + (b[1] - a[1]) * ratio]);
+    break;
+  }
+  return out;
+};
+
+/* ==========================================================================
+   initSeason(): builds the map, runs the lap, arms the reticle
+   ========================================================================== */
+function initSeason() {
+  const section = document.querySelector("[data-season]");
+  const frame = document.getElementById("season-frame");
+  const stage = document.getElementById("season-stage");
+  const mapBox = document.getElementById("season-map");
+  const traceCanvas = document.getElementById("season-trace");
+  if (!section || !frame || !stage || !mapBox || !traceCanvas) return;
+
+  const palette = {
+    accent: parseRgb(readToken("--accent")),
+    white: parseRgb(readToken("--foreground-on-dark")),
+    dot: parseRgb(readToken("--map-dot")),
+  };
+  palette.bright = mixRgb(palette.accent, palette.white, 0.55);
+
+  const COARSE_RATIO = COARSE ? 1 : 2;
+  const ratioOf = () => Math.min(window.devicePixelRatio || 1, COARSE_RATIO);
+
+  /* ------------------------------------------------------------------
+     MAP: halftone canvas beneath, SVG on top
+     ------------------------------------------------------------------ */
+  const dotCanvas = document.createElement("canvas");
+  mapBox.appendChild(dotCanvas);
+
+  const svg = S("svg", { viewBox: "0 0 2560 1440", "aria-hidden": "true" }, mapBox);
+  const defs = S("defs", {}, svg);
+
+  const cutMask = S("mask", { id: "season-cut", maskUnits: "userSpaceOnUse", x: -5000, y: -5000, width: 12560, height: 11440 }, defs);
+  S("rect", { x: -5000, y: -5000, width: 12560, height: 11440, fill: "#fff" }, cutMask);
+  S("rect", {
+    x: -18, y: -20, width: 36, height: 40, fill: "#000",
+    transform: `translate(${FLAG_CUT.x} ${FLAG_CUT.y}) rotate(${FLAG_CUT.angle})`,
+  }, cutMask);
+
+  const lapMask = S("mask", { id: "season-lap", maskUnits: "userSpaceOnUse", x: -5000, y: -5000, width: 12560, height: 11440 }, defs);
+  const lapStroke = S("path", {
+    d: LAP_CENTRELINE, fill: "none", stroke: "#fff", "stroke-width": LAP_MASK_WIDTH,
+    "stroke-linecap": "round", "stroke-linejoin": "round",
+    "stroke-dasharray": String(LAP_LENGTH + 60),
+    "stroke-dashoffset": String(60 + LAP_LENGTH),   /* nothing revealed yet */
+  }, lapMask);
+
+  /* grid axes, crawling dashes, drawn 4000 units past the artboard */
+  const grid = S("g", { id: "grid" }, svg);
+  const gridLines = [];
+  const gl = { stroke: "var(--map-grid)", "stroke-width": GRID_STROKE, "stroke-dasharray": GRID_DASH };
+  GRID_AXES_X.forEach((x) => {
+    gridLines.push(S("line", { ...gl, x1: x, x2: x, y1: -4000, y2: MAP_VIEW.height + 4000 }, grid));
+  });
+  gridLines.push(S("line", { ...gl, y1: GRID_AXIS_Y, y2: GRID_AXIS_Y, x1: -4000, x2: MAP_VIEW.width + 4000 }, grid));
+
+  RINGS.forEach((ring) => {
+    S("circle", {
+      cx: HUB.x, cy: HUB.y, r: ring.r, fill: "none",
+      stroke: ring.ghost ? "var(--map-grid-ghost)" : "var(--map-grid)",
+      "stroke-width": ring.width,
+    }, grid);
+  });
+  const ping = S("circle", {
+    cx: HUB.x, cy: HUB.y, r: HUB.r, fill: "none", stroke: "var(--accent)",
+    "stroke-width": GRID_STROKE, opacity: 0,
+  }, grid);
+  CORNER_MARKS.forEach(([x, y]) => {
+    S("rect", { x, y, width: CORNER_MARK_SIZE, height: CORNER_MARK_SIZE, fill: "var(--map-mark)" }, grid);
+  });
+  S("circle", { cx: HUB.x, cy: HUB.y, r: HUB.r, fill: "var(--map-mark)" }, grid);
+
+  /* the track, cut at the flag; the lap uncovers the accent ribbon */
+  const track = S("g", { mask: "url(#season-cut)" }, svg);
+  S("path", { d: TRACK_RIBBON, fill: "var(--foreground-on-dark)" }, track);
+  S("path", { d: TRACK_RIBBON, fill: "var(--accent)", mask: "url(#season-lap)" }, track);
+
+  const markers = S("g", { id: "markers" }, svg);
+  TURNS.forEach((t) => {
+    S("polygon", { points: TURN_POINTS, fill: "var(--accent)", transform: `translate(${t.x} ${t.y}) rotate(${t.angle})` }, markers);
+  });
+  S("path", { d: FLAG_DIAMONDS, fill: "var(--map-mark)" }, markers);
+
+  /* loops: all pause off screen */
+  loopClock(frame, 7000, EASE.linear, (p) => {
+    const off = String(20.5 * p);
+    gridLines.forEach((l) => l.setAttribute("stroke-dashoffset", off));
+  });
+  loopClock(frame, 4200, EASE.outQuad, (v) => {
+    ping.setAttribute("r", String(10.63 + v * 86));
+    ping.setAttribute("opacity", String(0.4 * (1 - v) * (1 - v)));
+  });
+  const meridian = document.getElementById("globe-meridian");
+  if (meridian) {
+    loopClock(section, 10000, EASE.linear, (p) => {
+      const turn = p * Math.PI * 2;
+      meridian.setAttribute("rx", String(Math.max(0.5, Math.abs(Math.cos(turn)) * 18)));
+    });
+  }
+
+  /* ------------------------------------------------------------------
+     STAGE FIT: cover from 1024, track-fit below
+     ------------------------------------------------------------------ */
+  const xs = CIRCUIT_PATH.map((p) => p[0]);
+  const ys = CIRCUIT_PATH.map((p) => p[1]);
+  const TRACK_BOX = {
+    x: Math.min(...xs) - 46, y: Math.min(...ys) - 46,
+    width: Math.max(...xs) - Math.min(...xs) + 92,
+    height: Math.max(...ys) - Math.min(...ys) + 92,
+  };
+  function fitStage() {
+    const w = frame.clientWidth, h = frame.clientHeight;
+    if (!w || !h) return;
+    let s, tx, ty;
+    if (w >= 1024) {
+      s = Math.max(w / 1440, h / 800);
+      tx = (w - 1440 * s) / 2;
+      ty = (h - 800 * s) / 2;
+    } else {
+      s = w / TRACK_BOX.width;
+      const cx = TRACK_BOX.x + TRACK_BOX.width / 2;
+      const cy = TRACK_BOX.y + TRACK_BOX.height / 2;
+      tx = w / 2 - cx * s;
+      ty = h / 2 - cy * s;
+    }
+    stage.style.transform = `translate(${tx}px, ${ty}px) scale(${s})`;
+  }
+  new ResizeObserver(fitStage).observe(frame);
+  fitStage();
+
+  /* ------------------------------------------------------------------
+     THE LAP TRACE CANVAS (1440x800 artboard units)
+     ------------------------------------------------------------------ */
+  const tctx = traceCanvas.getContext("2d");
+  let heat = 1;
+  let lapProgress = 0;
+
+  function sizeTrace() {
+    const r = ratioOf();
+    traceCanvas.width = Math.round(1440 * r);
+    traceCanvas.height = Math.round(800 * r);
+    renderTrace(lapProgress);
+  }
+
+  const strokePts = (c, pts, from = 0) => {
+    c.beginPath();
+    c.moveTo(pts[from][0], pts[from][1]);
+    for (let i = from + 1; i < pts.length; i += 1) c.lineTo(pts[i][0], pts[i][1]);
+    c.stroke();
+  };
+
+  const drawTrail = (c, pts, minWidth, glow, h) => {
+    if (pts.length < 2) return;
+    const width = Math.max(minWidth, LINE_WIDTH);
+    c.lineCap = "round"; c.lineJoin = "round";
+    if (glow) {
+      c.save();
+      c.globalCompositeOperation = "lighter";
+      c.strokeStyle = rgba(palette.accent, 0.05); c.lineWidth = GLOW_WIDTH; strokePts(c, pts);
+      c.strokeStyle = rgba(palette.accent, 0.1); c.lineWidth = GLOW_WIDTH * 0.45; strokePts(c, pts);
+      c.restore();
+    }
+    const head = Math.max(2, Math.round(HEAD_UNITS / CIRCUIT_STEP));
+    const from = Math.max(0, pts.length - head);
+    const tip = pts[pts.length - 1];
+    const hot = c.createLinearGradient(pts[from][0], pts[from][1], tip[0], tip[1]);
+    hot.addColorStop(0, rgba(palette.accent, 0));
+    hot.addColorStop(0.45, rgba(palette.accent, 0.9));
+    hot.addColorStop(1, rgba(mixRgb(palette.accent, palette.bright, h), 1));
+    c.strokeStyle = hot; c.lineWidth = width; strokePts(c, pts, from);
+    const coreFrom = Math.max(0, pts.length - Math.round(head * 0.42));
+    if (pts.length - coreFrom > 1) {
+      const core = c.createLinearGradient(pts[coreFrom][0], pts[coreFrom][1], tip[0], tip[1]);
+      core.addColorStop(0, rgba(palette.bright, 0));
+      core.addColorStop(1, rgba(palette.white, 0.95 * h));
+      c.strokeStyle = core; c.lineWidth = Math.max(minWidth * 0.6, width * 0.38); strokePts(c, pts, coreFrom);
+    }
+  };
+
+  function renderTrace(progress) {
+    const r = ratioOf();
+    const distance = distanceAtTime(progress);
+    const pts = trailUpTo(distance);
+    tctx.setTransform(r, 0, 0, r, 0, 0);
+    tctx.clearRect(0, 0, 1440, 800);
+
+    if (pts.length > 1) {
+      drawTrail(tctx, pts, 0.6, true, heat);
+      const [tx, ty] = pts[pts.length - 1];
+      tctx.save(); tctx.globalCompositeOperation = "lighter";
+      const spark = tctx.createRadialGradient(tx, ty, 0, tx, ty, LINE_WIDTH * 2.6);
+      spark.addColorStop(0, rgba(palette.white, 0.85 * heat));
+      spark.addColorStop(0.35, rgba(palette.bright, 0.4 * heat));
+      spark.addColorStop(1, rgba(palette.accent, 0));
+      tctx.fillStyle = spark; tctx.beginPath(); tctx.arc(tx, ty, LINE_WIDTH * 2.6, 0, Math.PI * 2); tctx.fill();
+      tctx.restore();
+    }
+
+    /* punch the finish out of everything just drawn */
+    tctx.save();
+    tctx.translate(CUT_CENTRE[0], CUT_CENTRE[1]);
+    tctx.rotate((FLAG_CUT.angle * Math.PI) / 180);
+    tctx.clearRect(-CUT_ALONG / 2, -CUT_ACROSS / 2, CUT_ALONG, CUT_ACROSS);
+    tctx.restore();
+
+    for (const marker of CIRCUIT_MARKERS) {
+      if (distance < marker.d) continue;
+      const age = Math.min(1, (distance - marker.d) / MARKER_POP_UNITS);
+      const radius = 12 + (1 - age) * 14;
+      const glow = tctx.createRadialGradient(marker.x, marker.y, 0, marker.x, marker.y, radius);
+      glow.addColorStop(0, rgba(palette.bright, 0.5 + 0.45 * (1 - age)));
+      glow.addColorStop(0.45, rgba(palette.accent, 0.32));
+      glow.addColorStop(1, rgba(palette.accent, 0));
+      tctx.save(); tctx.globalCompositeOperation = "lighter"; tctx.fillStyle = glow;
+      tctx.beginPath(); tctx.arc(marker.x, marker.y, radius, 0, Math.PI * 2); tctx.fill(); tctx.restore();
+      if (age < 1) {
+        tctx.strokeStyle = rgba(palette.bright, (1 - age) * 0.6); tctx.lineWidth = 1;
+        tctx.beginPath(); tctx.arc(marker.x, marker.y, 9 + age * 20, 0, Math.PI * 2); tctx.stroke();
+      }
+    }
+  }
+
+  /* the SVG ribbon fills along the same distance curve */
+  function setLap(progress) {
+    lapProgress = progress;
+    const reveal = 1 - distanceAtTime(progress) / TOTAL;
+    lapStroke.setAttribute("stroke-dashoffset", String(60 + reveal * LAP_LENGTH));
+    renderTrace(progress);
+  }
+
+  /* ------------------------------------------------------------------
+     THE HALFTONE ENGINE (resting field baked once; lit dots touched per frame)
+     ------------------------------------------------------------------ */
+  const MIN_LEVEL = 0.02;
+  const POINTER_HEAT = 0.95;
+  const RETICLE_OPEN = 420;
+  const RETICLE_SETTLE = 900;
+  const SPREAD_OPEN = 0.38;
+  const SPREAD_SHUT = 0.09;
+  const RETICLE_ARM = 0.82;
+  const RETICLE_CORE = 54;
+  const POINTER_TRAIL = 0.07;
+  const POINTER_RISE = 0.14;
+  const POINTER_FALL = 0.3;
+  const CHEQUER_FILL = 1;
+  const CHEQUER_SEED = 0.7;
+  const P = { threshold: 0.34, radius: 170, fade: 0.9 };
+
+  const approach = (from, to, dt, tau) => to + (from - to) * Math.exp(-dt / Math.max(1e-4, tau));
+  const falloff = (t) => { if (t >= 1) return 0; const u = 1 - t; return u * u; };
+
+  const { columns, rows, points, count } = DOTS;
+  let minI = Infinity, maxI = -Infinity, minJ = Infinity, maxJ = -Infinity;
+  for (let i = 0; i < count; i += 1) {
+    if (columns[i] < minI) minI = columns[i];
+    if (columns[i] > maxI) maxI = columns[i];
+    if (rows[i] < minJ) minJ = rows[i];
+    if (rows[i] > maxJ) maxJ = rows[i];
+  }
+  const GW = maxI - minI + 1, GH = maxJ - minJ + 1;
+  const cell = new Int32Array(GW * GH).fill(-1);
+  for (let i = 0; i < count; i += 1) cell[(rows[i] - minJ) * GW + (columns[i] - minI)] = i;
+
+  const level = new Float32Array(count);
+  const active = new Int32Array(count);
+  const inList = new Uint8Array(count);
+  let activeCount = 0;
+  const pointer = { x: 0, y: 0, heat: 0 };
+  const target = { x: 0, y: 0, on: false };
+  let spread = 0;
+  let dirty = true;
+  let lastFrame = 0;
+  let baked = null;
+  let armed = false;
+
+  function bake() {
+    const w0 = dotCanvas.clientWidth, h0 = dotCanvas.clientHeight;
+    if (!w0 || !h0) return;
+    const r = ratioOf();
+    const w = Math.round(w0 * r), h = Math.round(h0 * r);
+    if (dotCanvas.width !== w || dotCanvas.height !== h) { dotCanvas.width = w; dotCanvas.height = h; }
+    baked = baked || document.createElement("canvas");
+    baked.width = w; baked.height = h;
+    const c = baked.getContext("2d");
+    const scale = w / MAP_VIEW.width;
+    c.setTransform(scale, 0, 0, scale, 0, 0);
+    c.clearRect(0, 0, MAP_VIEW.width, MAP_VIEW.height);
+    c.fillStyle = cssRgb(palette.dot);
+    c.beginPath();
+    for (let i = 0; i < count; i += 1) {
+      const x = points[i * 2], y = points[i * 2 + 1];
+      c.moveTo(x + DOT_RADIUS, y);
+      c.arc(x, y, DOT_RADIUS, 0, Math.PI * 2);
+    }
+    c.fill();
+    dirty = true;
+    draw();
+  }
+
+  function add(i, value) {
+    if (value <= MIN_LEVEL) return;
+    if (value > level[i]) level[i] = value;
+    if (!inList[i]) { inList[i] = 1; active[activeCount] = i; activeCount += 1; }
+  }
+
+  function addPoint(src, reach) {
+    if (src.heat <= 0.01) return;
+    const i0 = Math.floor((src.x - reach - DOT_LATTICE.originX) / DOT_LATTICE.pitchX);
+    const i1 = Math.ceil((src.x + reach - DOT_LATTICE.originX) / DOT_LATTICE.pitchX);
+    const j0 = Math.floor((src.y - reach - DOT_LATTICE.originY) / DOT_LATTICE.pitchY);
+    const j1 = Math.ceil((src.y + reach - DOT_LATTICE.originY) / DOT_LATTICE.pitchY);
+    for (let j = Math.max(minJ, j0); j <= Math.min(minJ + GH - 1, j1); j += 1) {
+      const row = (j - minJ) * GW;
+      for (let i = Math.max(minI, i0); i <= Math.min(minI + GW - 1, i1); i += 1) {
+        const idx = cell[row + (i - minI)];
+        if (idx < 0) continue;
+        const d = Math.hypot(points[idx * 2] - src.x, points[idx * 2 + 1] - src.y);
+        add(idx, falloff(d / reach) * src.heat);
+      }
+    }
+  }
+
+  /* the reticle: the cursor's own lattice row and column, then a bloom at the crossing.
+     Arms fall off linearly so the far half stays above the chequer threshold. */
+  function addReticle(src) {
+    if (src.heat <= 0.01) return;
+    const ci = Math.round((src.x - DOT_LATTICE.originX) / DOT_LATTICE.pitchX);
+    const cj = Math.round((src.y - DOT_LATTICE.originY) / DOT_LATTICE.pitchY);
+    const arm = RETICLE_ARM * src.heat;
+    const reach = RETICLE_OPEN * spread;
+    if (reach > 1 && cj >= minJ && cj < minJ + GH) {
+      const row = (cj - minJ) * GW;
+      const span = Math.ceil(reach / DOT_LATTICE.pitchX);
+      for (let i = Math.max(minI, ci - span); i <= Math.min(minI + GW - 1, ci + span); i += 1) {
+        const idx = cell[row + (i - minI)];
+        if (idx < 0) continue;
+        add(idx, (1 - Math.abs(points[idx * 2] - src.x) / reach) * arm);
+      }
+    }
+    if (reach > 1 && ci >= minI && ci < minI + GW) {
+      const span = Math.ceil(reach / DOT_LATTICE.pitchY);
+      for (let j = Math.max(minJ, cj - span); j <= Math.min(minJ + GH - 1, cj + span); j += 1) {
+        const idx = cell[(j - minJ) * GW + (ci - minI)];
+        if (idx < 0) continue;
+        add(idx, (1 - Math.abs(points[idx * 2 + 1] - src.y) / reach) * arm);
+      }
+    }
+    addPoint(src, RETICLE_CORE);
+  }
+
+  function draw() {
+    if (!baked || !dotCanvas.width) return;
+    const c = dotCanvas.getContext("2d");
+    const scale = dotCanvas.width / MAP_VIEW.width;
+    c.setTransform(scale, 0, 0, scale, 0, 0);
+    c.clearRect(0, 0, MAP_VIEW.width, MAP_VIEW.height);
+    c.drawImage(baked, 0, 0, MAP_VIEW.width, MAP_VIEW.height);
+
+    /* two passes: lift every lit dot first, then lay the chequer down */
+    const box = DOT_RADIUS * 2 + 1;
+    const span = 1 - P.threshold || 1;
+    let drew = 0;
+    for (let k = 0; k < activeCount; k += 1) {
+      const idx = active[k];
+      if (level[idx] < P.threshold) continue;
+      c.clearRect(points[idx * 2] - DOT_RADIUS - 0.5, points[idx * 2 + 1] - DOT_RADIUS - 0.5, box, box);
+      drew += 1;
+    }
+    if (!drew) return;
+    for (let k = 0; k < activeCount; k += 1) {
+      const idx = active[k];
+      const value = level[idx];
+      if (value < P.threshold) continue;
+      if ((columns[idx] + rows[idx]) & 1) continue;   /* the dark half stays cleared */
+      const t = Math.min(1, (value - P.threshold) / span);
+      const side = DOT_LATTICE.pitchX * (CHEQUER_SEED + (CHEQUER_FILL - CHEQUER_SEED) * t);
+      c.fillStyle = cssRgb(value > 0.8 ? palette.white : value > 0.5 ? palette.bright : mixRgb(palette.accent, palette.bright, value));
+      c.fillRect(points[idx * 2] - side / 2, points[idx * 2 + 1] - side / 2, side, side);
+    }
+  }
+
+  function frameTick() {
+    const now = performance.now();
+    const dt = lastFrame ? Math.min(0.1, (now - lastFrame) / 1000) : 0;
+    lastFrame = now;
+
+    const wanted = target.on && armed ? POINTER_HEAT : 0;
+    if (pointer.heat <= 0.001 && wanted > 0) {
+      pointer.x = target.x; pointer.y = target.y;
+    } else if (dt > 0) {
+      const px0 = pointer.x, py0 = pointer.y;
+      pointer.x = approach(px0, target.x, dt, POINTER_TRAIL);
+      pointer.y = approach(py0, target.y, dt, POINTER_TRAIL);
+      const speed = Math.hypot(pointer.x - px0, pointer.y - py0) / dt;
+      const wantedSpread = Math.max(0, 1 - speed / RETICLE_SETTLE);
+      spread = approach(spread, wantedSpread, dt, wantedSpread > spread ? SPREAD_OPEN : SPREAD_SHUT);
+    }
+    pointer.heat = approach(pointer.heat, wanted, dt, wanted > pointer.heat ? POINTER_RISE : POINTER_FALL);
+    if (pointer.heat < 0.005) { pointer.heat = 0; spread = 0; }
+
+    const decay = Math.exp(-dt / Math.max(0.05, P.fade / 3));
+    let write = 0;
+    for (let k = 0; k < activeCount; k += 1) {
+      const idx = active[k];
+      const v = level[idx] * decay;
+      if (v > MIN_LEVEL) { level[idx] = v; active[write] = idx; write += 1; }
+      else { level[idx] = 0; inList[idx] = 0; }
+    }
+    const before = activeCount;
+    activeCount = write;
+
+    /* source "none" ships: the cursor reticle is the only light */
+    addReticle(pointer);
+
+    if (activeCount === 0 && before === 0 && !dirty) return;
+    dirty = false;
+    draw();
+  }
+  loopInView(section, frameTick);
+
+  /* the pointer: mouse only, never under hover:none or reduced motion */
+  if (!COARSE && !REDUCED && !window.matchMedia("(hover: none)").matches) {
+    window.addEventListener("pointermove", (e) => {
+      if (e.pointerType !== "mouse") return;
+      const sr = section.getBoundingClientRect();
+      const inside = e.clientX >= sr.left && e.clientX <= sr.right && e.clientY >= sr.top && e.clientY <= sr.bottom;
+      const cr = dotCanvas.getBoundingClientRect();
+      if (!cr.width || !cr.height) return;
+      target.x = ((e.clientX - cr.left) / cr.width) * MAP_VIEW.width;
+      target.y = ((e.clientY - cr.top) / cr.height) * MAP_VIEW.height;
+      target.on = inside;
+    }, { passive: true });
+    document.addEventListener("pointerleave", () => { target.on = false; });
+    window.addEventListener("blur", () => { target.on = false; });
+  }
+
+  new ResizeObserver(() => { bake(); }).observe(dotCanvas);
+  sizeTrace();
+  window.addEventListener("resize", sizeTrace);
+  bake();
+
+  /* ------------------------------------------------------------------
+     THE LAP: one 6-second pass when the block arrives, never re-runs
+     ------------------------------------------------------------------ */
+  let lapStarted = false;
+  function startLap() {
+    if (lapStarted) return;
+    lapStarted = true;
+    if (REDUCED) {
+      heat = 0; setLap(1); armed = false;
+      return;
+    }
+    tween(LAP_MS, EASE.inOutSine, (e) => setLap(e), () => {
+      setLap(1);
+      tween(COOL_MS, EASE.outCubic, (e) => { heat = 1 - e; renderTrace(1); }, () => {
+        heat = 0; renderTrace(1);
+        armed = true;   /* only now does the reticle arm */
+      });
+    });
+  }
+  const lapIo = new IntersectionObserver((es) => {
+    if (es.some((e) => e.isIntersecting)) { lapIo.disconnect(); startLap(); }
+  }, { threshold: 0.35 });
+  lapIo.observe(frame);
+}
+
+/* ==========================================================================
+   CHEQUERED DISSOLVE: canvas[data-dissolve][data-carry="light|dark"]
+   scrub "top bottom" -> "top top"
+   ========================================================================== */
+const DISSOLVE_SOLID_UNTIL = 0.16;
+const DISSOLVE_LIFT = 2;
+const DISSOLVE_ACCENT_SHARE = 0.06;
+
+const dissolveNoise = (x, y) => {
+  let h = Math.imul(x, 374761393) + Math.imul(y, 668265263);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+};
+
+function initDissolves() {
+  document.querySelectorAll("canvas[data-dissolve]").forEach((canvas) => {
+    const carry = canvas.dataset.carry === "dark" ? "dark" : "light";
+    const ctx = canvas.getContext("2d");
+    let progress = 0;
+
+    const render = () => {
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      const width = canvas.clientWidth, height = canvas.clientHeight;
+      if (!width || !height) return;
+      if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) {
+        canvas.width = Math.round(width * ratio);
+        canvas.height = Math.round(height * ratio);
+      }
+      ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+      ctx.clearRect(0, 0, width, height);
+
+      const cs = parseFloat(getComputedStyle(canvas).getPropertyValue("--flag-cell"));
+      const cellPx = cs > 0 ? cs : 24;
+      const surface = readToken(carry === "light" ? "--background" : "--surface-black");
+      const accent = readToken("--accent");
+      const columnsN = Math.ceil(width / cellPx);
+      const rowsN = Math.ceil(height / cellPx);
+      const lift = progress * DISSOLVE_LIFT;
+
+      for (let y = 0; y < rowsN; y += 1) {
+        const depth = y / Math.max(1, rowsN - 1) + lift;
+        if (depth > 1) break;
+        const solid = depth <= DISSOLVE_SOLID_UNTIL;
+        const fade = clamp01(1 - (depth - DISSOLVE_SOLID_UNTIL) / (1 - DISSOLVE_SOLID_UNTIL));
+        if (!solid && fade <= 0) break;
+        for (let x = 0; x < columnsN; x += 1) {
+          if (!solid) {
+            if ((x + y) % 2 !== 0) continue;
+            if (dissolveNoise(x, y) > fade) continue;
+          }
+          ctx.fillStyle = !solid && dissolveNoise(x + 101, y + 57) < DISSOLVE_ACCENT_SHARE ? accent : surface;
+          ctx.fillRect(x * cellPx, y * cellPx, cellPx, cellPx);
+        }
+      }
+    };
+
+    scrollTrigger(canvas, {
+      start: "top bottom", end: "top top",
+      onSmooth: (p) => { progress = p; render(); },
+    });
+    new ResizeObserver(render).observe(canvas);
+    render();
+  });
+}
+
+/* ===== PART 8D ENDS HERE. Part 9 (timeline, paddock, footer CSS + JS) goes next. ===== */
