@@ -6,8 +6,10 @@ import { tmpdir } from "node:os";
 
 const read = (path) => readFileSync(path, "utf8");
 const html = read("kimi-grido1.html");
+const part02 = read("reference/kimi-grido1/part-02-layout-css.html");
 const part03 = read("reference/kimi-grido1/part-03-html-markup.html");
 const part04 = read("reference/kimi-grido1/part-04-js-engine.html");
+const part10 = read("reference/kimi-grido1/part-10-hero-wrapper-boot.html");
 const part08b = read("reference/kimi-grido1/part-08b-season-circuit-path.ts");
 const part08c = read("reference/kimi-grido1/part-08c-season-map-dots.ts");
 
@@ -120,6 +122,18 @@ for (const anchor of anchors) {
   assert.ok(idSet.has(anchor), "Missing internal anchor target: #" + anchor);
 }
 console.log("PASS: " + ids.length + " unique IDs and " + anchors.length + " valid internal anchors");
+
+assert.ok(html.includes('class="skip-link" href="#main-content"'), "Keyboard skip link missing");
+assert.ok(html.includes('<main id="main-content" tabindex="-1">'), "Main landmark missing");
+assert.ok(part02.includes(".skip-link:focus") && html.includes(".skip-link:focus"), "Skip link CSS missing from source or page");
+assert.ok(part03.includes('<main id="main-content" tabindex="-1">'), "Main landmark missing from Part 03");
+assert.ok(part10.includes("scene asset load timed out after 15 seconds"), "Hero loading watchdog missing from Part 10");
+assert.ok(html.includes("scene asset load timed out after 15 seconds"), "Hero loading watchdog missing from assembled page");
+assert.ok(html.includes("Unofficial fan-made concept."), "Fan concept disclaimer missing");
+assert.ok(!html.includes('href="https://instagram.com"') && !html.includes('href="https://x.com"') && !html.includes('href="https://youtube.com"'), "Generic social placeholder URL remains");
+const blankLinks = [...html.matchAll(/<a\\b(?=[^>]*target="_blank")[^>]*>/g)].map((match) => match[0]);
+assert.ok(blankLinks.every((link) => /rel="[^"]*noopener/.test(link)), "External new-tab link missing noopener");
+console.log("PASS: accessibility landmarks, hero timeout fallback, disclaimer and official links");
 
 const styles = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((match) => match[1]);
 assert.ok(styles.length > 0, "No CSS style blocks found");
