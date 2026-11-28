@@ -346,14 +346,17 @@ function initSeason() {
   const falloff = (t) => { if (t >= 1) return 0; const u = 1 - t; return u * u; };
 
   const { columns, rows, points, count } = DOTS;
-  let minI = Infinity, maxI = -Infinity, minJ = Infinity, maxJ = -Infinity;
-  for (let i = 0; i < count; i += 1) {
-    if (columns[i] < minI) minI = columns[i];
-    if (columns[i] > maxI) maxI = columns[i];
-    if (rows[i] < minJ) minJ = rows[i];
-    if (rows[i] > maxJ) maxJ = rows[i];
+  let minI = 0, maxI = -1, minJ = 0, maxJ = -1;
+  if (count > 0) {
+    minI = Infinity; maxI = -Infinity; minJ = Infinity; maxJ = -Infinity;
+    for (let i = 0; i < count; i += 1) {
+      if (columns[i] < minI) minI = columns[i];
+      if (columns[i] > maxI) maxI = columns[i];
+      if (rows[i] < minJ) minJ = rows[i];
+      if (rows[i] > maxJ) maxJ = rows[i];
+    }
   }
-  const GW = maxI - minI + 1, GH = maxJ - minJ + 1;
+  const GW = Math.max(0, maxI - minI + 1), GH = Math.max(0, maxJ - minJ + 1);
   const cell = new Int32Array(GW * GH).fill(-1);
   for (let i = 0; i < count; i += 1) cell[(rows[i] - minJ) * GW + (columns[i] - minI)] = i;
 
