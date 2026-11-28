@@ -4714,8 +4714,10 @@ function initHero(veil) {
   scene.onReady = () => veil.ready();
   scene.onError = (err) => {
     showAssetError(err.url || err.message || "Scene asset failed");
-    /* a model that never decodes must not leave the veil up forever */
-    veil.ready();
+    /* Release a partially built WebGL scene and reveal the portrait fallback. */
+    try { scene.dispose(); }
+    catch (disposeError) { console.warn("[hero] scene disposal failed:", disposeError); }
+    useFallback(err);
   };
   veil.onLift(() => scene.beginRise());
 
