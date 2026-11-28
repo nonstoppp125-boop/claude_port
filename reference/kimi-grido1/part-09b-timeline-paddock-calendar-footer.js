@@ -248,11 +248,11 @@ function initContours() {
    PADDOCK
    ========================================================================== */
 const CAL_ROUNDS = [
-  { r: "round 11", n: "austrian gp", d: "29 jun", x: 347, w: 100, mark: "p6" },
-  { r: "round 12", n: "british gp", d: "12 jul", x: 511, w: 100, mark: "p4" },
-  { r: "round 13", n: "belgian gp", d: "27 jul", x: 675, w: 100, mark: "live" },
-  { r: "round 14", n: "hungarian gp", d: "03 aug", x: 839, w: 114, mark: "ring" },
-  { r: "round 15", n: "dutch gp", d: "31 aug", x: 1017, w: 76, mark: "ring" },
+  { r: "round 18", n: "united states gp", d: "25 oct", x: 347, w: 128, mark: "p1" },
+  { r: "round 19", n: "mexico city gp", d: "01 nov", x: 511, w: 120, mark: "p3" },
+  { r: "round 20", n: "sao paulo gp", d: "08 nov", x: 675, w: 112, mark: "p5" },
+  { r: "round 21", n: "las vegas gp", d: "21 nov", x: 839, w: 110, mark: "p4" },
+  { r: "round 22", n: "qatar gp", d: "29 nov", x: 1017, w: 100, mark: "live" },
 ];
 const CAL_LINKS = [
   { x: 416, w: 126, dir: 1 }, { x: 580, w: 128, dir: 1 },
@@ -356,7 +356,7 @@ function buildCalendar() {
     }, cal);
     const inner = H("span", "", { style: "display:grid;place-items:center" }, mark);
     gate(inner, base + 60, "0px");
-    if (r.mark === "p6" || r.mark === "p4") {
+    if (/^p\\d+$/.test(r.mark)) {
       inner.textContent = r.mark;
     } else {
       const svg = S("svg", { viewBox: "0 0 11 11", "aria-hidden": "true" }, inner);
