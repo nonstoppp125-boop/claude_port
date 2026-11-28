@@ -1,5 +1,5 @@
 /* ==========================================================================
-   SEASON, PART B: circuit-path.ts (900 points, 3 units apart, closed on the flag)
+   SEASON, PART B: circuit-path.ts (907 saved samples; average segment 2.989 units; closed on the flag)
    [x, y] in the 1440x800 authoring space, clockwise from the flag.
    ========================================================================== */
 const CIRCUIT_PATH = [
