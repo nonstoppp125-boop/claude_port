@@ -1,0 +1,34 @@
+name: Kimi GRIDO1 static audit
+
+on:
+  push:
+    branches: [portfolio-build]
+    paths:
+      - "kimi-grido1.html"
+      - "reference/kimi-grido1/**"
+      - "scripts/audit-kimi-grido1.mjs"
+      - ".github/workflows/kimi-grido1-audit.yml"
+  pull_request:
+    branches: [portfolio-build]
+    paths:
+      - "kimi-grido1.html"
+      - "reference/kimi-grido1/**"
+      - "scripts/audit-kimi-grido1.mjs"
+      - ".github/workflows/kimi-grido1-audit.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  static-audit:
+    name: Static HTML, CSS and JavaScript checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Run Kimi page audit
+        run: node scripts/audit-kimi-grido1.mjs
