@@ -250,6 +250,14 @@ html.menu-open { position: relative; overflow: hidden; height: 100%; }
   text-transform: none;
   word-break: break-all;
 }
+
+/* Keyboard-accessible bypass to the primary content. */
+.skip-link {
+  position: fixed; left: 1rem; top: 1rem; z-index: 100;
+  padding: 0.75rem 1rem; background: var(--surface-black); color: var(--foreground-on-dark);
+  border: 2px solid var(--accent); transform: translateY(-180%);
+}
+.skip-link:focus { transform: translateY(0); }
 </style>
 
 <style>
@@ -381,7 +389,8 @@ html.menu-open { position: relative; overflow: hidden; height: 100%; }
 .burger__lines { display: grid; gap: 0.3125rem; }
 .burger__lines i { display: block; width: 1.5rem; height: 1px; background: var(--foreground); }
 
-/* full-screen sheet (appended to <body>) */
+/* full-screen sheet (appended to <body>
+<a class="skip-link" href="#main-content">Skip to content</a>) */
 .menu-sheet {
   position: fixed; inset: 0; z-index: 50;
   background: var(--background);
@@ -1161,6 +1170,8 @@ html.menu-open { position: relative; overflow: hidden; height: 100%; }
   <div class="veil__meter" id="veil-meter"><div class="veil__meter-fill" id="veil-meter-fill"></div></div>
 </div>
 
+<main id="main-content" tabindex="-1">
+
 <!-- ======================= STACK (hero, season, timeline) ======================= -->
 <div class="stack" id="stack">
 
@@ -1376,6 +1387,8 @@ html.menu-open { position: relative; overflow: hidden; height: 100%; }
 
   <div class="cal" id="cal" aria-label="Season calendar"></div>   <!-- Part 9 builds the 5 rounds -->
 </section>
+
+</main>
 
 <!-- ======================= 5. FOOTER ======================= -->
 <footer class="foot" id="footer" aria-labelledby="foot-h">
@@ -4689,7 +4702,13 @@ function initHero(veil) {
   const fbPath = fbImg ? fbImg.dataset.asset : null;
   if (fbImg) delete fbImg.dataset.asset;
 
+  let fallbackActive = false;
+  let sceneTimeout = 0;
+
   function useFallback(reason) {
+    if (fallbackActive) return;
+    fallbackActive = true;
+    if (sceneTimeout) { window.clearTimeout(sceneTimeout); sceneTimeout = 0; }
     console.warn("[hero] using fallback:", reason);
     wrap.hidden = true;
     if (fallback) {
@@ -4711,14 +4730,25 @@ function initHero(veil) {
     return;
   }
 
-  scene.onReady = () => veil.ready();
+  scene.onReady = () => {
+    if (fallbackActive) return;
+    if (sceneTimeout) { window.clearTimeout(sceneTimeout); sceneTimeout = 0; }
+    veil.ready();
+  };
   scene.onError = (err) => {
+    if (fallbackActive) return;
     showAssetError(err.url || err.message || "Scene asset failed");
     /* Release a partially built WebGL scene and reveal the portrait fallback. */
     try { scene.dispose(); }
     catch (disposeError) { console.warn("[hero] scene disposal failed:", disposeError); }
     useFallback(err);
   };
+  sceneTimeout = window.setTimeout(() => {
+    if (fallbackActive || scene.ready) return;
+    try { scene.dispose(); }
+    catch (disposeError) { console.warn("[hero] timeout disposal failed:", disposeError); }
+    useFallback("scene asset load timed out after 15 seconds");
+  }, 15000);
   veil.onLift(() => scene.beginRise());
 
   /* ---------- fit: re-seat the subject in the layout's box, then width-keyed overrides ---------- */
