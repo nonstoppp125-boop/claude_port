@@ -38,7 +38,7 @@ function assertBalanced(source, open, close, label) {
         escaped = false;
         continue;
       }
-      if (c === "\\\\") {
+      if (c === "\\") {
         escaped = true;
         continue;
       }
@@ -58,13 +58,13 @@ function assertBalanced(source, open, close, label) {
     if (c === open) depth += 1;
     if (c === close) {
       depth -= 1;
-      assert.ok(depth >= 0, `${label}: unexpected ${close}`);
+      assert.ok(depth >= 0, label + ": unexpected " + close);
     }
   }
 
-  assert.equal(depth, 0, `${label}: unbalanced ${open}${close}`);
-  assert.equal(quote, "", `${label}: unterminated string`);
-  assert.equal(comment, false, `${label}: unterminated comment`);
+  assert.equal(depth, 0, label + ": unbalanced " + open + close);
+  assert.equal(quote, "", label + ": unterminated string");
+  assert.equal(comment, false, label + ": unterminated comment");
 }
 
 const requiredParts = [
@@ -85,9 +85,9 @@ const requiredParts = [
 ];
 
 for (const file of requiredParts) {
-  read(`reference/kimi-grido1/${file}`);
+  read("reference/kimi-grido1/" + file);
 }
-console.log(`PASS: all ${requiredParts.length} source parts exist`);
+console.log("PASS: all " + requiredParts.length + " source parts exist");
 
 assert.ok(part03.includes("<!-- SCRIPTS: Part 4 onward go here -->"), "Part 03 script marker must be closed");
 assert.ok(html.includes("<!-- SCRIPTS: Part 4 onward go here -->"), "assembled script marker must be closed");
@@ -99,9 +99,9 @@ assert.ok(part04.includes("rootMargin = el.dataset.margin || rootMargin;"), "Par
 assert.ok(html.includes("rootMargin = el.dataset.margin || rootMargin;"), "assembled bindGate margin override missing");
 console.log("PASS: bindGate margin override is present in source and page");
 
-const circuitMatch = part08b.match(/const CIRCUIT_PATH\\s*=\\s*\\[([\\s\\S]*?)\\n\\];/);
+const circuitMatch = part08b.match(/const CIRCUIT_PATH\s*=\s*\[([\s\S]*?)\n\];/);
 assert.ok(circuitMatch, "CIRCUIT_PATH array not found");
-const points = [...circuitMatch[1].matchAll(/\\[\\s*(-?\\d+(?:\\.\\d+)?)\\s*,\\s*(-?\\d+(?:\\.\\d+)?)\\s*\\]/g)];
+const points = [...circuitMatch[1].matchAll(/\[\s*(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)\s*\]/g)];
 assert.equal(points.length, 907, "CIRCUIT_PATH sample count changed; review before updating this assertion");
 assert.equal(points[0][1], points.at(-1)[1], "CIRCUIT_PATH must close at its starting X");
 assert.equal(points[0][2], points.at(-1)[2], "CIRCUIT_PATH must close at its starting Y");
@@ -112,24 +112,24 @@ assert.ok(part08c.includes("TRACK_RIBBON"), "Part 08C must derive its fallback f
 assert.ok(part08c.includes("count: columns.length"), "Part 08C runtime dot count must be computed from generated points");
 console.log("PASS: Part 08C fallback is documented and count is runtime-derived");
 
-const ids = [...html.matchAll(/\\bid=["']([^"']+)["']/g)].map((match) => match[1]);
+const ids = [...html.matchAll(/\bid=["']([^"']+)["']/g)].map((match) => match[1]);
 assert.equal(new Set(ids).size, ids.length, "Duplicate HTML id found");
 const idSet = new Set(ids);
-const anchors = [...new Set([...html.matchAll(/\\bhref=["']#([^"']+)["']/g)].map((match) => match[1]))];
+const anchors = [...new Set([...html.matchAll(/\bhref=["']#([^"']+)["']/g)].map((match) => match[1]))];
 for (const anchor of anchors) {
-  assert.ok(idSet.has(anchor), `Missing internal anchor target: #${anchor}`);
+  assert.ok(idSet.has(anchor), "Missing internal anchor target: #" + anchor);
 }
-console.log(`PASS: ${ids.length} unique IDs and ${anchors.length} valid internal anchors`);
+console.log("PASS: " + ids.length + " unique IDs and " + anchors.length + " valid internal anchors");
 
-const styles = [...html.matchAll(/<style\\b[^>]*>([\\s\\S]*?)<\\/style>/gi)].map((match) => match[1]);
+const styles = [...html.matchAll(/<style\b[^>]*>([\s\S]*?)<\/style>/gi)].map((match) => match[1]);
 assert.ok(styles.length > 0, "No CSS style blocks found");
 for (let i = 0; i < styles.length; i += 1) {
-  assertBalanced(styles[i], "{", "}", `CSS block ${i + 1} braces`);
-  assertBalanced(styles[i], "(", ")", `CSS block ${i + 1} parentheses`);
+  assertBalanced(styles[i], "{", "}", "CSS block " + (i + 1) + " braces");
+  assertBalanced(styles[i], "(", ")", "CSS block " + (i + 1) + " parentheses");
 }
-console.log(`PASS: ${styles.length} CSS blocks have balanced braces and parentheses`);
+console.log("PASS: " + styles.length + " CSS blocks have balanced braces and parentheses");
 
-const moduleMatch = html.match(/<script type="module">([\\s\\S]*?)<\\/script>/i);
+const moduleMatch = html.match(/<script type="module">([\s\S]*?)<\/script>/i);
 assert.ok(moduleMatch, "Inline module script not found");
 const tempDir = mkdtempSync(join(tmpdir(), "kimi-grido1-audit-"));
 try {
