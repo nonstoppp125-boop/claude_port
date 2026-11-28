@@ -5,7 +5,7 @@
    rootMargin = el.dataset.margin || rootMargin;
 */
 const cq = (v) => ((v / 1440) * 100).toFixed(4) + "cqw";             /* same as px() */
-const typePx = (v) => \`max(\${cq(v)}, var(--type-min, 0px))\`;
+const typePx = (v) => `max(${cq(v)}, var(--type-min, 0px))`;
 
 /* ---------- plate geometry (plate-shape.ts) ---------- */
 const PLATE_OUTLINE =
@@ -60,14 +60,14 @@ function initTimeline() {
 
   TIMELINE.forEach((e, i) => {
     const centre = e.frame === "centre";
-    const row = H("div", \`tl-row tl-row--\${e.frame}\${e.align ? " tl-row--" + e.align : ""} tl-row--\${i % 2 ? "odd" : "even"}\`, {}, rowsEl);
+    const row = H("div", `tl-row tl-row--${e.frame}${e.align ? " tl-row--" + e.align : ""} tl-row--${i % 2 ? "odd" : "even"}`, {}, rowsEl);
 
     /* layer 1: the plate and its year (the year rides the plate's parallax) */
     const plateLayer = H("div", "tl-layer", {}, row);
     const plate = H("div", "tl-plate", {}, plateLayer);
     const fill = H("div", "tl-plate__fill", {}, plate);
     const slot = H("div", "tl-plate__slot", {}, fill);
-    const img = H("img", "", { "data-asset": \`timeline/\${e.year}.webp\`, width: 1420, height: 1016, alt: e.alt, loading: "lazy" }, slot);
+    const img = H("img", "", { "data-asset": `timeline/${e.year}.webp`, width: 1420, height: 1016, alt: e.alt, loading: "lazy" }, slot);
     const outline = S("svg", { class: "tl-plate__outline", viewBox: "0 0 710.995 462.995", preserveAspectRatio: "none", "aria-hidden": "true" }, plate);
     S("path", { d: PLATE_OUTLINE }, outline);
 
@@ -81,7 +81,7 @@ function initTimeline() {
     let copyLayer = null;
     if (centre && e.lead) {
       copyLayer = H("div", "tl-layer", {}, row);
-      const p = H("p", "tl-copy", { style: \`--cw:\${cq(e.cw)}\` }, copyLayer);
+      const p = H("p", "tl-copy", { style: `--cw:${cq(e.cw)}` }, copyLayer);
       const inner = H("span", "", {
         "data-rise": 220, "data-y": "0.75rem", "data-cfg": "tlcopy",
         "data-when": "once", "data-margin": GATE_ROW, style: "display:block",
@@ -94,14 +94,14 @@ function initTimeline() {
     const trav = (centre ? PARALLAX.plate.centre : PARALLAX.plate.side) / 1440 * 100;
     scrollTrigger(row, {
       start: "top bottom", end: "bottom top",
-      from: \`\${trav.toFixed(4)}cqw\`, to: \`\${(-trav).toFixed(4)}cqw\`,
+      from: `${trav.toFixed(4)}cqw`, to: `${(-trav).toFixed(4)}cqw`,
       onUpdate: (v) => { plateLayer.style.top = v; },
     });
     if (copyLayer) {
       const ct = PARALLAX.copy / 1440 * 100;
       scrollTrigger(row, {
         start: "top bottom", end: "bottom top",
-        from: \`\${ct.toFixed(4)}cqw\`, to: \`\${(-ct).toFixed(4)}cqw\`,
+        from: `${ct.toFixed(4)}cqw`, to: `${(-ct).toFixed(4)}cqw`,
         onUpdate: (v) => { copyLayer.style.top = v; },
       });
     }
@@ -151,7 +151,7 @@ function initTimeline() {
     const rest = lastTop + heights[heights.length - 1] / 2 - MARK_RISE;
     const size = narrow ? 20 : 9;
 
-    const svg = S("svg", { viewBox: \`0 0 16 \${viewH}\`, preserveAspectRatio: "xMidYMin meet" }, rail);
+    const svg = S("svg", { viewBox: `0 0 16 ${viewH}`, preserveAspectRatio: "xMidYMin meet" }, rail);
     const ln = { stroke: "var(--timeline-rail)", "stroke-width": 1 };
     S("line", { ...ln, x1: 8, x2: 8, y1: 0, y2: 98 }, svg);
     S("line", { ...ln, x1: 8, x2: 8, y1: 102, y2: rest, "stroke-dasharray": "6 6" }, svg);
@@ -161,7 +161,7 @@ function initTimeline() {
     const update = (p) => {
       const run = p * rest;
       bar.setAttribute("height", String(run));
-      mark.setAttribute("transform", \`translate(8 \${run}) rotate(\${(run / rest) * 1800})\`);
+      mark.setAttribute("transform", `translate(8 ${run}) rotate(${(run / rest) * 1800})`);
     };
     update(0);
 
@@ -259,13 +259,13 @@ const CAL_LINKS = [
   { x: 743, w: 136, dir: -1 }, { x: 914, w: 124, dir: -1 },
 ];
 const CARD_DELAY = 560, CARD_STAGGER = 90, PULSE_MS = 3200, PULSE_REACH = 3.4, CRAWL_MS = 5200, BRACKET_SPREAD = 5;
-const calX = (x) => \`calc(50% + \${cq(x - 720)} * var(--cal-spread, 1))\`;
+const calX = (x) => `calc(50% + ${cq(x - 720)} * var(--cal-spread, 1))`;
 
 /* four corner strokes, one path drawn four ways: tl 270 · tr 0 · br 90 · bl 180 */
 function cornerSvg(parent, rot, pos) {
   const s = S("svg", { viewBox: "0 0 10.5 10.5", "aria-hidden": "true" }, parent);
   S("path", { d: "M0 0.5H10V10.5" }, s);
-  s.style.transform = \`rotate(\${rot}deg)\`;
+  s.style.transform = `rotate(${rot}deg)`;
   Object.assign(s.style, pos);
   return s;
 }
@@ -278,14 +278,14 @@ function initPaddock() {
   const fig = document.getElementById("pad-fig");
   if (fig) {
     scrollTrigger(section, {
-      start: "top bottom", end: "bottom top", from: "0cqw", to: \`\${cq(-48)}\`,
+      start: "top bottom", end: "bottom top", from: "0cqw", to: `${cq(-48)}`,
       onUpdate: (v) => { fig.style.top = v; },
     });
   }
 
   /* the two bracket frames (black strokes), fading in at 320 / 460 */
   [["meet", 320], ["stats", 460]].forEach(([name, delay]) => {
-    const f = section.querySelector(\`.pad__frame[data-frame="\${name}"]\`);
+    const f = section.querySelector(`.pad__frame[data-frame="${name}"]`);
     if (!f) return;
     f.dataset.rise = delay; f.dataset.y = "0px"; f.dataset.cfg = "reveal"; f.dataset.when = "forward";
     cornerSvg(f, 270, { left: 0, top: 0 });
@@ -323,14 +323,14 @@ function buildCalendar() {
   /* dashed connectors; the two left of the live round crawl right, the two right crawl left */
   const linkEls = CAL_LINKS.map((l, i) => {
     const a = H("i", "cal__link", {
-      style: \`left:\${calX(l.x)};width:calc(\${cq(l.w)} * var(--cal-spread, 1));top:calc(\${cq(131.5)} + var(--cal-mark-drop, 0px));--dash:\${cq(7)};--period:\${cq(11.45)}\`,
+      style: `left:${calX(l.x)};width:calc(${cq(l.w)} * var(--cal-spread, 1));top:calc(${cq(131.5)} + var(--cal-mark-drop, 0px));--dash:${cq(7)};--period:${cq(11.45)}`,
     }, cal);
     a.dataset.scale = "x";
     gate(a, CARD_DELAY + i * CARD_STAGGER, "0px");
     return { el: a, dir: l.dir };
   });
   loopClock(cal, CRAWL_MS, EASE.linear, (p) => {
-    linkEls.forEach(({ el, dir }) => { el.style.backgroundPositionX = \`calc(\${dir * p} * \${cq(11.45)})\`; });
+    linkEls.forEach(({ el, dir }) => { el.style.backgroundPositionX = `calc(${dir * p} * ${cq(11.45)})`; });
   });
 
   let pulseCircle = null;
@@ -339,20 +339,20 @@ function buildCalendar() {
     const live = r.mark === "live";
     const base = CARD_DELAY + i * CARD_STAGGER;
 
-    const card = H("div", \`cal__card\${live ? " cal__card--live" : ""}\`, {
-      style: \`left:calc(50% + \${cq(r.x + r.w / 2 - 720)} * var(--cal-spread, 1) - \${cq(r.w / 2)});top:calc(\${cq(43)} + var(--cal-card-drop, 0px));width:var(--cal-card-w, \${cq(r.w)});gap:\${typePx(12)}\`,
+    const card = H("div", `cal__card${live ? " cal__card--live" : ""}`, {
+      style: `left:calc(50% + ${cq(r.x + r.w / 2 - 720)} * var(--cal-spread, 1) - ${cq(r.w / 2)});top:calc(${cq(43)} + var(--cal-card-drop, 0px));width:var(--cal-card-w, ${cq(r.w)});gap:${typePx(12)}`,
     }, cal);
     if (i < 2) card.setAttribute("data-hide-phone", "");
     gate(card, base, "0.5rem");
-    H("span", "", { style: \`font-size:\${typePx(12)};letter-spacing:\${cq(-0.24)}\`, text: r.r }, card);
+    H("span", "", { style: `font-size:${typePx(12)};letter-spacing:${cq(-0.24)}`, text: r.r }, card);
     const name = H("span", "cal__name", { text: r.n }, card);
     name.style.display = "block";
     gate(name, base + 110, "0.3em", "name");
-    H("span", "", { style: \`font-size:\${typePx(14)};letter-spacing:\${cq(-0.28)}\`, text: r.d }, card);
+    H("span", "", { style: `font-size:${typePx(14)};letter-spacing:${cq(-0.28)}`, text: r.d }, card);
 
     /* marker on the connector run, centred on the card, fading in at +60 */
     const mark = H("div", "cal__mark", {
-      style: \`left:calc(50% + \${cq(r.x + r.w / 2 - 720)} * var(--cal-spread, 1));top:calc(\${cq(126)} + var(--cal-mark-drop, 0px));font-size:\${typePx(12)}\`,
+      style: `left:calc(50% + ${cq(r.x + r.w / 2 - 720)} * var(--cal-spread, 1));top:calc(${cq(126)} + var(--cal-mark-drop, 0px));font-size:${typePx(12)}`,
     }, cal);
     const inner = H("span", "", { style: "display:grid;place-items:center" }, mark);
     gate(inner, base + 60, "0px");
@@ -384,7 +384,7 @@ function buildCalendar() {
 
   /* the live bracket: accent corners from x 669 to 781, y 32 to 113 */
   const br = H("div", "cal__bracket", {
-    style: \`left:\${calX(669)};width:calc(\${cq(112)} * var(--cal-spread, 1));top:calc(\${cq(32)} + var(--bracket-drop, 0px));height:calc(\${cq(81)} + var(--bracket-stretch, 0px))\`,
+    style: `left:${calX(669)};width:calc(${cq(112)} * var(--cal-spread, 1));top:calc(${cq(32)} + var(--bracket-drop, 0px));height:calc(${cq(81)} + var(--bracket-stretch, 0px))`,
   }, cal);
   gate(br, CARD_DELAY + 5 * CARD_STAGGER, "0px");
   cornerSvg(br, 270, { left: "calc(-1 * var(--bs))", top: "calc(-1 * var(--bs))" });
