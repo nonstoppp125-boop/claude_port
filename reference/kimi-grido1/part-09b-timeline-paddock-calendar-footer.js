@@ -356,7 +356,7 @@ function buildCalendar() {
     }, cal);
     const inner = H("span", "", { style: "display:grid;place-items:center" }, mark);
     gate(inner, base + 60, "0px");
-    if (/^p\\d+$/.test(r.mark)) {
+    if (/^p\d+$/.test(r.mark)) {
       inner.textContent = r.mark;
     } else {
       const svg = S("svg", { viewBox: "0 0 11 11", "aria-hidden": "true" }, inner);
