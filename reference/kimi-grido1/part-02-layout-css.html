@@ -353,4 +353,12 @@
 @media (prefers-reduced-motion: reduce) {
   .stack__inner { transform: none !important; }
 }
+
+/* Keyboard-accessible bypass to the primary content. */
+.skip-link {
+  position: fixed; left: 1rem; top: 1rem; z-index: 100;
+  padding: 0.75rem 1rem; background: var(--surface-black); color: var(--foreground-on-dark);
+  border: 2px solid var(--accent); transform: translateY(-180%);
+}
+.skip-link:focus { transform: translateY(0); }
 </style>
