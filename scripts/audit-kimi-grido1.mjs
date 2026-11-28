@@ -131,7 +131,7 @@ assert.ok(part10.includes("scene asset load timed out after 15 seconds"), "Hero 
 assert.ok(html.includes("scene asset load timed out after 15 seconds"), "Hero loading watchdog missing from assembled page");
 assert.ok(html.includes("Unofficial fan-made concept."), "Fan concept disclaimer missing");
 assert.ok(!html.includes('href="https://instagram.com"') && !html.includes('href="https://x.com"') && !html.includes('href="https://youtube.com"'), "Generic social placeholder URL remains");
-const blankLinks = [...html.matchAll(/<a\\b(?=[^>]*target="_blank")[^>]*>/g)].map((match) => match[0]);
+const blankLinks = [...html.matchAll(/<a\b(?=[^>]*target="_blank")[^>]*>/g)].map((match) => match[0]);
 assert.ok(blankLinks.every((link) => /rel="[^"]*noopener/.test(link)), "External new-tab link missing noopener");
 console.log("PASS: accessibility landmarks, hero timeout fallback, disclaimer and official links");
 
