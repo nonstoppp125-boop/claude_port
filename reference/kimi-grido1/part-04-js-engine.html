@@ -245,6 +245,7 @@ const heroReady = new Promise((r) => { heroResolve = r; });
 function handover() { heroResolve(); }
 
 function bindGate(el, when, activate, rootMargin = "0% 0% -10% 0%") {
+  rootMargin = el.dataset.margin || rootMargin;
   if (when === "hero") { heroReady.then(() => activate(true)); return; }
   if (when === "once") { inView(el, { rootMargin, once: true }, (v) => { if (v) activate(true); }); return; }
   if (when === "always") { inView(el, { rootMargin }, activate); return; }
