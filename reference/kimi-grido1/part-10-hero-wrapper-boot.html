@@ -1,0 +1,145 @@
+/* ==========================================================================
+   THE HERO WRAPPER: canvas sizing, render loop, pointer, tier retune, fallback
+   ========================================================================== */
+function hasWebGL() {
+  try {
+    const c = document.createElement("canvas");
+    return Boolean(c.getContext("webgl2") || c.getContext("webgl"));
+  } catch (e) { return false; }
+}
+
+function initHero(veil) {
+  const section = document.querySelector("[data-hero]");
+  const wrap = document.getElementById("hero-canvas-wrap");
+  const canvas = document.getElementById("hero-canvas");
+  const fitBox = document.getElementById("hero-fit-box");
+  const fallback = document.getElementById("hero-fallback");
+  if (!section || !wrap || !canvas) { veil.ready(); return; }
+
+  /* the fallback portrait loads only if it is needed */
+  const fbImg = fallback && fallback.querySelector("img");
+  const fbPath = fbImg ? fbImg.dataset.asset : null;
+  if (fbImg) delete fbImg.dataset.asset;
+
+  function useFallback(reason) {
+    console.warn("[hero] using fallback:", reason);
+    wrap.hidden = true;
+    if (fallback) {
+      fallback.hidden = false;
+      fallback.style.backgroundImage = `url("${asset("hero/ui/backdrop-lines.svg")}")`;
+      if (fbImg && fbPath) { fbImg.dataset.asset = fbPath; applyAsset(fbImg); }
+    }
+    veil.ready();   /* the veil lifts immediately */
+  }
+
+  if (!hasWebGL()) { useFallback("WebGL unavailable"); return; }
+
+  let scene;
+  try {
+    scene = new HeroScene(canvas);
+  } catch (err) {
+    showAssetError(err.message || "WebGL scene failed");
+    useFallback(err);
+    return;
+  }
+
+  scene.onReady = () => veil.ready();
+  scene.onError = (err) => {
+    showAssetError(err.url || err.message || "Scene asset failed");
+    /* a model that never decodes must not leave the veil up forever */
+    veil.ready();
+  };
+  veil.onLift(() => scene.beginRise());
+
+  /* ---------- fit: re-seat the subject in the layout's box, then width-keyed overrides ---------- */
+  function applyFit() {
+    const s = section.getBoundingClientRect();
+    const displayed = fitBox && fitBox.offsetParent !== null;
+    const b = displayed ? fitBox.getBoundingClientRect() : null;
+    scene.setParams({
+      ...DEFAULT_PARAMS,
+      ...(b ? fitSubjectToBox(DEFAULT_PARAMS, { top: b.top - s.top, height: b.height }, wrap.clientHeight) : null),
+      ...(window.matchMedia("(max-width: 1023px)").matches ? { bgRevealOpacity: 0 } : null),
+      ...(window.matchMedia("(hover: none)").matches ? { autoSweepAmount: 0.76 } : null),
+      ...(window.matchMedia("(max-width: 639px)").matches ? { sweepRadius: 0.95, sweepWarp: 0.18, autoSweepAmount: 0.55 } : null),
+      ...(scene.tier.reveal ? null : { autoSweepAmount: 0 }),
+    });
+  }
+
+  /* ---------- pointer: bound only while the tier has one ---------- */
+  const onPointer = (e) => {
+    scene.setPointer((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
+  };
+  let pointerBound = false;
+  function syncPointer() {
+    const want = scene.tier.pointerEnabled;
+    if (want && !pointerBound) { window.addEventListener("pointermove", onPointer, { passive: true }); pointerBound = true; }
+    else if (!want && pointerBound) { window.removeEventListener("pointermove", onPointer); pointerBound = false; }
+  }
+
+  /* ---------- size: coalesced into one rAF; on a coarse pointer only width changes count ---------- */
+  const coarseQuery = window.matchMedia("(hover: none) and (pointer: coarse)");
+  let lastW = 0;
+  let queued = false;
+  function resizeNow(force) {
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    if (!w || !h) return;
+    const widthChanged = w !== lastW;
+    if (!force && !widthChanged && coarseQuery.matches) return;   /* the iOS URL bar */
+    lastW = w;
+    if (force || widthChanged) { scene.retune(); syncPointer(); }
+    scene.resize(w, h);
+    applyFit();
+  }
+  const scheduleResize = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; resizeNow(false); });
+  };
+  new ResizeObserver(scheduleResize).observe(wrap);
+  if (coarseQuery.addEventListener) coarseQuery.addEventListener("change", () => resizeNow(true));
+  else coarseQuery.addListener(() => resizeNow(true));
+  syncPointer();
+  resizeNow(true);
+
+  /* ---------- the render loop: in view (+10 frames), tab visible, scrollY <= innerHeight * 1.15 ---------- */
+  const COVERED_AFTER = 1.15;
+  loopInView(section, (time) => {
+    if (document.hidden) return;
+    if (window.scrollY > window.innerHeight * COVERED_AFTER) return;
+    scene.update(time);
+  }, () => scene.tier.frameInterval);
+}
+
+/* ==========================================================================
+   BOOT
+   Order matters: builders that create markup run BEFORE loadAssets and
+   initReveals, which scan the DOM once.
+   ========================================================================== */
+const safeRun = (label, fn) => {
+  try { return fn(); } catch (e) { console.error(`[boot] ${label} failed:`, e); }
+};
+
+function boot() {
+  safeRun("setMaskAssets", setMaskAssets);
+  const veil = initVeil();
+  safeRun("initBurger", initBurger);
+  safeRun("initHero", () => initHero(veil));   /* the veil is released inside */
+
+  safeRun("initTimeline", initTimeline);
+  safeRun("initPaddock", initPaddock);
+
+  safeRun("loadAssets", () => loadAssets(document));
+  safeRun("initReveals", () => initReveals(document));
+
+  safeRun("initDissolves", initDissolves);
+  safeRun("initSeason", initSeason);
+  safeRun("initContours", initContours);
+  safeRun("initFooter", initFooter);
+  safeRun("initStack", initStack);
+}
+
+boot();
+</script>
+</body>
+</html>
